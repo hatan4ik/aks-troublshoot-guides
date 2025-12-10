@@ -30,6 +30,21 @@ async def restart_failed_pods():
     """Auto-restart failed pods"""
     return await fixer.restart_failed_pods()
 
+@app.post("/fix/cleanup-evicted")
+async def cleanup_evicted():
+    """Remove evicted pods"""
+    return await fixer.cleanup_evicted_pods()
+
+@app.post("/fix/dns")
+async def fix_dns():
+    """Restart unhealthy CoreDNS pods"""
+    return await fixer.fix_dns_issues()
+
+@app.post("/fix/scale/{namespace}/{deployment}")
+async def scale_workload(namespace: str, deployment: str, replicas: int):
+    """Scale a deployment to a desired replica count"""
+    return await fixer.scale_resources(namespace, deployment, replicas)
+
 @app.get("/metrics/resources")
 async def resource_metrics():
     """Get resource utilization metrics"""

@@ -59,22 +59,27 @@
 - ✅ `cluster-health-check.sh` - Comprehensive cluster assessment
 - ✅ `pod-diagnostics.sh` - Pod-level troubleshooting
 - ✅ `network-diagnostics.sh` - Network connectivity and DNS
-- 🔄 `resource-analysis.sh` - Resource utilization analysis
-- 🔄 `security-audit.sh` - Security posture assessment
-- 🔄 `performance-analysis.sh` - Performance bottleneck detection
+- ✅ `resource-analysis.sh` - Resource utilization analysis
+- ✅ `security-audit.sh` - Security posture assessment
+- ✅ `performance-analysis.sh` - Performance bottleneck detection
+- ✅ `storage-analysis.sh` - PV/PVC and attach diagnostics
+- ✅ `deployment-diagnostics.sh` - Rollout health and events
+- ✅ `gitops-diagnostics.sh` - Argo/Flux sync health
+- ✅ `helm-diagnostics.sh` - Helm release checks
+- ✅ `pipeline-debug.sh` - CI/CD troubleshooting helper
 
 ### Fix Scripts (Planned)
-- 🔄 `auto-restart-failed-pods.sh` - Restart crashlooping pods
-- 🔄 `cleanup-evicted-pods.sh` - Remove evicted pods
-- 🔄 `fix-dns-issues.sh` - Restart CoreDNS and validate
-- 🔄 `scale-resources.sh` - Auto-scale based on metrics
-- 🔄 `update-certificates.sh` - Renew expiring certificates
+- ✅ `auto-restart-failed-pods.sh` - Restart crashlooping pods
+- ✅ `cleanup-evicted-pods.sh` - Remove evicted pods
+- ✅ `fix-dns-issues.sh` - Restart CoreDNS and validate
+- ✅ `scale-resources.sh` - Scale deployments with checks
+- ✅ `update-certificates.sh` - Renew/refresh ingress certificates
 
 ### Monitoring Scripts (Planned)
-- 🔄 `setup-prometheus.sh` - Deploy monitoring stack
-- 🔄 `configure-alerts.sh` - Setup alerting rules
-- 🔄 `health-dashboard.sh` - Create health dashboard
-- 🔄 `log-aggregation.sh` - Setup centralized logging
+- ✅ `setup-prometheus.sh` - Deploy monitoring stack
+- ✅ `configure-alerts.sh` - Setup alerting rules
+- ✅ `health-dashboard.sh` - Create health dashboard
+- ✅ `log-aggregation.sh` - Setup centralized logging
 
 ## 📋 Team Responsibilities Matrix
 

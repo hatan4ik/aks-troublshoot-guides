@@ -1,5 +1,4 @@
 from typing import Dict, List
-import asyncio
 from kubernetes.client.rest import ApiException
 
 class AutoFixer:

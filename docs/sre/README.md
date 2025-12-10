@@ -31,17 +31,16 @@ Operational excellence, monitoring, alerting, incident response, and capacity pl
 
 ### SRE Automation Tools
 ```bash
-# System health dashboard
+# System health dashboard (Grafana)
 ./scripts/monitoring/health-dashboard.sh
 
-# Capacity analysis
-./scripts/diagnostics/capacity-analysis.sh
+# Resource/capacity analysis
+./scripts/diagnostics/resource-analysis.sh
+./scripts/diagnostics/performance-analysis.sh
 
-# Performance baseline
-./scripts/monitoring/performance-baseline.sh
-
-# Incident response toolkit
-./scripts/diagnostics/incident-toolkit.sh
+# Monitoring/alerts
+./scripts/monitoring/setup-prometheus.sh
+./scripts/monitoring/configure-alerts.sh
 ```
 
 ### SLI/SLO Management

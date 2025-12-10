@@ -29,10 +29,10 @@ Documentation standards, templates, and style guides for maintaining high-qualit
 ```
 
 ### Templates Available
-- [Troubleshooting Guide Template](templates/troubleshooting-template.md)
-- [Runbook Template](templates/runbook-template.md)
-- [Post-Mortem Template](templates/post-mortem-template.md)
-- [API Documentation Template](templates/api-doc-template.md)
+- [Troubleshooting Guide Template](../../templates/troubleshooting-template.md)
+- [Runbook Template](../../templates/runbook-template.md)
+- [Post-Mortem Template](../../templates/post-mortem-template.md)
+- [API Documentation Template](../../templates/api-doc-template.md)
 
 ### Style Guide
 - **Code blocks**: Use syntax highlighting

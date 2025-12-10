@@ -34,11 +34,16 @@ CI/CD pipeline management, infrastructure automation, and deployment strategies 
 # Cluster health check
 ./scripts/diagnostics/cluster-health-check.sh
 
-# Deployment validation
-./scripts/diagnostics/deployment-validation.sh
+# Deployment diagnostics
+./scripts/diagnostics/deployment-diagnostics.sh <deployment> <namespace>
 
 # Pipeline troubleshooting
 ./scripts/diagnostics/pipeline-debug.sh
+
+# Resource/perf/security checks
+./scripts/diagnostics/resource-analysis.sh
+./scripts/diagnostics/performance-analysis.sh
+./scripts/diagnostics/security-audit.sh
 ```
 
 ### Troubleshooting Focus Areas

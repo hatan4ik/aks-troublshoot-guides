@@ -21,10 +21,13 @@ A comprehensive troubleshooting guide for Kubernetes, Azure Kubernetes Service (
 - Basic understanding of Kubernetes concepts
 
 ### Emergency Troubleshooting Checklist
-1. **Cluster Health**: `./scripts/cluster-health-check.sh`
-2. **Pod Issues**: `./scripts/pod-diagnostics.sh`
-3. **Network Problems**: `./scripts/network-diagnostics.sh`
-4. **Resource Constraints**: `./scripts/resource-analysis.sh`
+1. **Cluster Health**: `./scripts/diagnostics/cluster-health-check.sh`
+2. **Pod Issues**: `./scripts/diagnostics/pod-diagnostics.sh`
+3. **Network Problems**: `./scripts/diagnostics/network-diagnostics.sh`
+4. **Resource Constraints**: `./scripts/diagnostics/resource-analysis.sh`
+5. **Storage Issues**: `./scripts/diagnostics/storage-analysis.sh`
+6. **Deployments Stuck**: `./scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`
+7. **DNS Issues**: `./scripts/fixes/fix-dns-issues.sh`
 
 ## 📁 Guide Structure
 
@@ -54,11 +57,12 @@ A comprehensive troubleshooting guide for Kubernetes, Azure Kubernetes Service (
 
 ## 🔧 Automation Features
 
-- **One-click diagnostics** for common issues
-- **Automated remediation** scripts for known problems
-- **Health monitoring** dashboards and alerts
-- **Performance optimization** recommendations
-- **Security scanning** and compliance checks
+- **One-click diagnostics** for common issues (pods, network, deployments, storage, GitOps, Helm)
+- **Automated remediation** scripts for pods, DNS, evicted cleanup, scaling, and cert refresh
+- **Health monitoring** dashboards and alerts (Prometheus/Grafana/alerts)
+- **Performance optimization** recommendations and resource profiling
+- **Security scanning** and compliance checks via `security-audit.sh`
+- **Programmatic API/CLI** for detect/fix workflows
 
 ## 📊 Supported Platforms
 

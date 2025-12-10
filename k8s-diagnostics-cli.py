@@ -47,11 +47,21 @@ class DiagnosticsCLI:
         result = await self.fixer.cleanup_evicted_pods()
         print(json.dumps(result, indent=2))
 
+    async def fix_dns(self):
+        """Restart unhealthy CoreDNS pods"""
+        result = await self.fixer.fix_dns_issues()
+        print(json.dumps(result, indent=2))
+
+    async def scale(self, namespace, deployment, replicas):
+        """Scale a deployment"""
+        result = await self.fixer.scale_resources(namespace, deployment, int(replicas))
+        print(json.dumps(result, indent=2))
+
 def main():
     cli = DiagnosticsCLI()
     
     if len(sys.argv) < 2:
-        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup]")
+        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale]")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -68,6 +78,10 @@ def main():
         asyncio.run(cli.fix_failed_pods())
     elif command == "cleanup":
         asyncio.run(cli.cleanup_evicted())
+    elif command == "dnsfix":
+        asyncio.run(cli.fix_dns())
+    elif command == "scale" and len(sys.argv) >= 5:
+        asyncio.run(cli.scale(sys.argv[2], sys.argv[3], sys.argv[4]))
     else:
         print("Invalid command or missing arguments")
         sys.exit(1)

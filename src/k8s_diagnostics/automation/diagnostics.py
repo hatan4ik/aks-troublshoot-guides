@@ -1,6 +1,6 @@
 from typing import Dict, List
-import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
+from kubernetes.client import V1Pod
 
 class DiagnosticsEngine:
     def __init__(self, k8s_client):
@@ -85,7 +85,8 @@ class DiagnosticsEngine:
         network_status = {
             "dns": await self._check_dns(),
             "services": self._check_service_endpoints(),
-            "ingress": self._check_ingress_controllers()
+            "ingress": self._check_ingress_controllers(),
+            "load_balancers": self._check_pending_load_balancers()
         }
         return network_status
 
@@ -151,7 +152,21 @@ class DiagnosticsEngine:
         """Auto-detect common cluster issues"""
         issues = []
         
-        # Check for failed pods
+        # Nodes not ready
+        nodes = self.k8s.v1.list_node()
+        not_ready = [
+            n.metadata.name for n in nodes.items
+            if not any(c.type == "Ready" and c.status == "True" for c in n.status.conditions or [])
+        ]
+        if not_ready:
+            issues.append({
+                "type": "nodes_not_ready",
+                "severity": "high",
+                "count": len(not_ready),
+                "details": not_ready[:5]
+            })
+
+        # Check for failed/pending pods
         pods = self.k8s.v1.list_pod_for_all_namespaces()
         failed_pods = [p for p in pods.items if p.status.phase in ["Failed", "Pending"]]
         
@@ -163,7 +178,47 @@ class DiagnosticsEngine:
                 "details": [f"{p.metadata.namespace}/{p.metadata.name}" for p in failed_pods[:5]]
             })
         
-        # Check for high restart counts
+        # Image pull issues
+        image_pull = self._find_image_pull_errors(pods.items)
+        if image_pull:
+            issues.append({
+                "type": "image_pull_errors",
+                "severity": "high",
+                "count": len(image_pull),
+                "details": image_pull[:5]
+            })
+
+        # Pending PVCs
+        pending_pvcs = self.k8s.v1.list_persistent_volume_claim_for_all_namespaces()
+        stuck_pvcs = [f"{p.metadata.namespace}/{p.metadata.name}" for p in pending_pvcs.items if p.status.phase != "Bound"]
+        if stuck_pvcs:
+            issues.append({
+                "type": "pvc_not_bound",
+                "severity": "medium",
+                "count": len(stuck_pvcs),
+                "details": stuck_pvcs[:5]
+            })
+
+        # DNS issues (CoreDNS not healthy)
+        dns_status = await self._check_dns()
+        if dns_status.get("running_pods", 0) == 0:
+            issues.append({
+                "type": "dns_unhealthy",
+                "severity": "high",
+                "details": ["CoreDNS pods not running"]
+            })
+
+        # Pending load balancers
+        pending_lbs = self._check_pending_load_balancers().get("pending", [])
+        if pending_lbs:
+            issues.append({
+                "type": "load_balancer_pending",
+                "severity": "medium",
+                "count": len(pending_lbs),
+                "details": pending_lbs[:5]
+            })
+
+        # High restart counts
         high_restart_pods = []
         for pod in pods.items:
             for container in pod.status.container_statuses or []:
@@ -179,3 +234,23 @@ class DiagnosticsEngine:
             })
         
         return {"issues": issues, "timestamp": datetime.now().isoformat()}
+
+    def _find_image_pull_errors(self, pods: List[V1Pod]) -> List[str]:
+        """Detect pods with image pull failures"""
+        pull_errors = []
+        for pod in pods:
+            for status in pod.status.container_statuses or []:
+                waiting = status.state.waiting
+                if waiting and waiting.reason in ["ImagePullBackOff", "ErrImagePull"]:
+                    pull_errors.append(f"{pod.metadata.namespace}/{pod.metadata.name} ({waiting.reason})")
+        return pull_errors
+
+    def _check_pending_load_balancers(self) -> Dict:
+        """Identify pending load balancer services"""
+        lbs = self.k8s.v1.list_service_for_all_namespaces(field_selector="spec.type=LoadBalancer")
+        pending = []
+        for svc in lbs.items:
+            ingress = svc.status.load_balancer.ingress
+            if not ingress:
+                pending.append(f"{svc.metadata.namespace}/{svc.metadata.name}")
+        return {"pending": pending, "total": len(lbs.items)}

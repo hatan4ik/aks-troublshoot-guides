@@ -27,6 +27,15 @@ curl http://localhost:8000/issues/detect
 
 # Auto-fix failed pods
 curl -X POST http://localhost:8000/fix/restart-failed-pods
+
+# Cleanup evicted pods
+curl -X POST http://localhost:8000/fix/cleanup-evicted
+
+# Fix DNS
+curl -X POST http://localhost:8000/fix/dns
+
+# Scale deployment
+curl -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
 ```
 
 ### Python SDK Usage
@@ -46,6 +55,7 @@ pod_info = await diagnostics.diagnose_pod("default", "my-pod")
 
 # Auto-detect issues
 issues = await diagnostics.detect_common_issues()
+# Returns nodes not ready, failed/pending pods, image pull errors, DNS/CoreDNS health, PVC binds, and pending load balancers.
 ```
 
 ### Programmatic CLI
@@ -61,6 +71,15 @@ python k8s-diagnostics-cli.py network
 
 # Auto-fix
 python k8s-diagnostics-cli.py fix
+
+# Cleanup evicted pods
+python k8s-diagnostics-cli.py cleanup
+
+# Fix DNS
+python k8s-diagnostics-cli.py dnsfix
+
+# Scale a deployment
+python k8s-diagnostics-cli.py scale default my-deploy 3
 ```
 
 ## 🔧 Team Integration
