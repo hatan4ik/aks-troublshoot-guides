@@ -1,0 +1,168 @@
+# Storage and Persistence Configuration for K8s Diagnostics API
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: k8s-diagnostics-data
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: k8s-diagnostics-logs
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: logging
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: shared-storage
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-diagnostics-scripts
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: automation
+data:
+  health-check.py: |
+    #!/usr/bin/env python3
+    import requests
+    import sys
+    
+    def check_health():
+        try:
+            response = requests.get('http://localhost:8000/health', timeout=5)
+            if response.status_code == 200:
+                print("API is healthy")
+                return 0
+            else:
+                print(f"API returned status {response.status_code}")
+                return 1
+        except Exception as e:
+            print(f"Health check failed: {e}")
+            return 1
+    
+    if __name__ == "__main__":
+        sys.exit(check_health())
+  
+  backup-diagnostics.sh: |
+    #!/bin/bash
+    # Backup diagnostics data
+    DATE=$(date +%Y%m%d-%H%M%S)
+    BACKUP_DIR="/data/backups"
+    
+    mkdir -p "$BACKUP_DIR"
+    
+    # Export cluster state
+    kubectl get all -A -o yaml > "$BACKUP_DIR/cluster-state-$DATE.yaml"
+    kubectl get events -A -o yaml > "$BACKUP_DIR/events-$DATE.yaml"
+    
+    # Compress old backups
+    find "$BACKUP_DIR" -name "*.yaml" -mtime +7 -exec gzip {} \;
+    
+    echo "Backup completed: $BACKUP_DIR"
+  
+  cleanup-old-data.sh: |
+    #!/bin/bash
+    # Cleanup old diagnostic data
+    LOG_DIR="/app/logs"
+    CACHE_DIR="/app/cache"
+    
+    # Remove logs older than 30 days
+    find "$LOG_DIR" -name "*.log" -mtime +30 -delete
+    
+    # Clear cache older than 7 days
+    find "$CACHE_DIR" -type f -mtime +7 -delete
+    
+    echo "Cleanup completed"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k8s-diagnostics-backup
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: backup
+spec:
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: k8s-diagnostics
+          containers:
+          - name: backup
+            image: k8s-diagnostics:latest
+            command: ["/bin/bash"]
+            args: ["/scripts/backup-diagnostics.sh"]
+            volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: data
+              mountPath: /data
+          volumes:
+          - name: scripts
+            configMap:
+              name: k8s-diagnostics-scripts
+              defaultMode: 0755
+          - name: data
+            persistentVolumeClaim:
+              claimName: k8s-diagnostics-data
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: k8s-diagnostics-cleanup
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: maintenance
+spec:
+  schedule: "0 1 * * 0"  # Weekly on Sunday at 1 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: k8s-diagnostics
+          containers:
+          - name: cleanup
+            image: k8s-diagnostics:latest
+            command: ["/bin/bash"]
+            args: ["/scripts/cleanup-old-data.sh"]
+            volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: logs
+              mountPath: /app/logs
+            - name: cache
+              mountPath: /app/cache
+          volumes:
+          - name: scripts
+            configMap:
+              name: k8s-diagnostics-scripts
+              defaultMode: 0755
+          - name: logs
+            persistentVolumeClaim:
+              claimName: k8s-diagnostics-logs
+          - name: cache
+            emptyDir: {}
+          restartPolicy: OnFailure

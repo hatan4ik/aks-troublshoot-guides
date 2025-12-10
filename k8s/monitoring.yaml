@@ -1,0 +1,129 @@
+# Monitoring and Observability for K8s Diagnostics API
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k8s-diagnostics-config
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: config
+data:
+  config.yaml: |
+    api:
+      host: "0.0.0.0"
+      port: 8000
+      workers: 2
+    diagnostics:
+      auto_fix_enabled: true
+      max_concurrent_checks: 10
+      timeout_seconds: 30
+    monitoring:
+      metrics_enabled: true
+      metrics_port: 9090
+      health_check_interval: 30
+    logging:
+      level: "INFO"
+      format: "json"
+    alerts:
+      webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      critical_threshold: 5
+      warning_threshold: 3
+---
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: k8s-diagnostics-api
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: k8s-diagnostics-api
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: k8s-diagnostics-alerts
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: alerts
+spec:
+  groups:
+  - name: k8s-diagnostics
+    rules:
+    - alert: DiagnosticsAPIDown
+      expr: up{job="k8s-diagnostics-api"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        team: faan-board
+      annotations:
+        summary: "K8s Diagnostics API is down"
+        description: "The diagnostics API has been down for more than 1 minute"
+    
+    - alert: HighPodFailureRate
+      expr: k8s_pod_failures_total > 10
+      for: 5m
+      labels:
+        severity: warning
+        team: sre
+      annotations:
+        summary: "High pod failure rate detected"
+        description: "More than 10 pod failures in the last 5 minutes"
+    
+    - alert: ClusterHealthDegraded
+      expr: k8s_cluster_health_score < 0.8
+      for: 2m
+      labels:
+        severity: warning
+        team: sre
+      annotations:
+        summary: "Cluster health is degraded"
+        description: "Cluster health score is below 80%"
+---
+apiVersion: v1
+kind: PodDisruptionBudget
+metadata:
+  name: k8s-diagnostics-api
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: k8s-diagnostics-api
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: k8s-diagnostics-psp
+  labels:
+    app: k8s-diagnostics-api
+    component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+    - ALL
+  volumes:
+    - 'emptyDir'
+    - 'projected'
+    - 'secret'
+    - 'downwardAPI'
+    - 'configMap'
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'

@@ -1,0 +1,152 @@
+# Advanced Networking Configuration for K8s Diagnostics API
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: k8s-diagnostics-api-netpol
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: k8s-diagnostics-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow internal cluster access
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 8000
+  # Allow monitoring scraping
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  # Allow DNS resolution
+  - to: []
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+  # Allow Kubernetes API access
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  # Allow metrics server access
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 10250
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8s-diagnostics-api-ingress
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: networking
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+spec:
+  tls:
+  - hosts:
+    - k8s-diagnostics.internal.company.com
+    secretName: k8s-diagnostics-tls
+  rules:
+  - host: k8s-diagnostics.internal.company.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: k8s-diagnostics-api
+            port:
+              number: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: k8s-diagnostics-api-headless
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: discovery
+spec:
+  clusterIP: None
+  selector:
+    app: k8s-diagnostics-api
+  ports:
+  - name: http
+    port: 8000
+    targetPort: http
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: k8s-diagnostics-api-vs
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: service-mesh
+spec:
+  hosts:
+  - k8s-diagnostics-api.kube-system.svc.cluster.local
+  http:
+  - match:
+    - uri:
+        prefix: "/health"
+  - route:
+    - destination:
+        host: k8s-diagnostics-api.kube-system.svc.cluster.local
+        port:
+          number: 8000
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: k8s-diagnostics-api-dr
+  namespace: kube-system
+  labels:
+    app: k8s-diagnostics-api
+    component: service-mesh
+spec:
+  host: k8s-diagnostics-api.kube-system.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 10
+    loadBalancer:
+      simple: LEAST_CONN
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 30s
+      baseEjectionTime: 30s
