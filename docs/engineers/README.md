@@ -1,48 +1,26 @@
 # Engineering Team Guide
+Ship and debug services in Kubernetes. This guide favors short checklists and runnable commands.
 
-## Overview
-Development-focused troubleshooting for application deployment, debugging, and development workflows in Kubernetes.
+## Your Lens
+- Build and ship containers; own startup/runtime health.
+- Debug pods, configs, and dependencies quickly.
+- Keep dev/stage environments reproducible.
 
-## Key Responsibilities
-- Application containerization and deployment
-- Debugging application issues in Kubernetes
-- Development environment setup and maintenance
-- Integration with CI/CD pipelines
+## Chapters
+- Apps: [Pod Startup](pod-startup-issues.md), [Container Images](container-images.md), [Config Management](config-management.md), [Secrets & ConfigMaps](secrets-configmaps.md)
+- Workflows: [Local Dev](local-development.md), [Debugging Techniques](debugging-techniques.md), [Testing Strategies](testing-strategies.md), [Performance Profiling](performance-profiling.md)
 
-## Quick Reference
-
-### Application Issues
-- [Pod Startup Problems](pod-startup-issues.md)
-- [Container Image Issues](container-images.md)
-- [Configuration Management](config-management.md)
-- [Secrets and ConfigMaps](secrets-configmaps.md)
-
-### Development Workflows
-- [Local Development Setup](local-development.md)
-- [Debugging Techniques](debugging-techniques.md)
-- [Testing Strategies](testing-strategies.md)
-- [Performance Profiling](performance-profiling.md)
-
-### Common Troubleshooting Commands
+## Fast Commands
 ```bash
-# Pod debugging
-kubectl describe pod <pod-name>
-kubectl logs <pod-name> -f
-kubectl exec -it <pod-name> -- /bin/bash
-
-# Application debugging
-kubectl port-forward <pod-name> 8080:8080
-kubectl get events --sort-by=.metadata.creationTimestamp
+kubectl describe pod <pod> -n <ns>
+kubectl logs <pod> -n <ns> --all-containers --tail=200
+kubectl exec -it <pod> -n <ns> -- sh
+kubectl port-forward <pod> -n <ns> 8080:8080
+kubectl get events -n <ns> --sort-by=.lastTimestamp | tail
 ```
 
-### Troubleshooting Focus Areas
-1. **Application crashes** - Exit codes, resource limits, dependencies
-2. **Connectivity issues** - Service discovery, DNS, network policies
-3. **Performance problems** - Resource requests/limits, JVM tuning
-4. **Configuration errors** - Environment variables, mounted volumes
-
-## Emergency Escalation
-For application-critical issues:
-1. Run application diagnostics: `./scripts/diagnostics/app-health-check.sh`
-2. Check resource utilization: `./scripts/diagnostics/resource-analysis.sh`
-3. Escalate to Senior Engineer if code changes needed
+## Run These First When Things Break
+- Pod-level triage: `./scripts/diagnostics/pod-diagnostics.sh <pod> <ns>`
+- Resource pressure: `./scripts/diagnostics/resource-analysis.sh`
+- Network/DNS: `./scripts/diagnostics/network-diagnostics.sh`
+- Deployment stuck: `./scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`

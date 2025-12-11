@@ -1,62 +1,35 @@
 # Site Reliability Engineering (SRE) Guide
+Operate for uptime and fast recovery. This is a concise, action-first reference.
 
-## Overview
-Operational excellence, monitoring, alerting, incident response, and capacity planning for Kubernetes environments.
+## Your Lens
+- Build observability (metrics/logs/traces) and actionable alerts.
+- Run incidents with discipline; capture learnings via post-mortems.
+- Plan capacity and performance with headroom.
 
-## Key Responsibilities
-- System reliability and availability
-- Monitoring and observability setup
-- Incident response and post-mortems
-- Capacity planning and performance optimization
+## Chapters
+- Observability: metrics, logging, tracing, alerting.
+- Incidents: classification, escalation, post-mortem, communication.
+- Performance/Capacity: resource planning, tuning, autoscaling, cost.
 
-## Quick Reference
-
-### Monitoring & Observability
-- [Metrics Collection](metrics-collection.md)
-- [Logging Strategy](logging-strategy.md)
-- [Distributed Tracing](distributed-tracing.md)
-- [Alerting Rules](alerting-rules.md)
-
-### Incident Response
-- [Incident Classification](incident-classification.md)
-- [Escalation Procedures](escalation-procedures.md)
-- [Post-Mortem Process](post-mortem.md)
-- [Communication Templates](communication-templates.md)
-
-### Performance & Capacity
-- [Resource Planning](resource-planning.md)
-- [Performance Tuning](performance-tuning.md)
-- [Autoscaling Configuration](autoscaling.md)
-- [Cost Optimization](cost-optimization.md)
-
-### SRE Automation Tools
+## Run These First
 ```bash
-# System health dashboard (Grafana)
-./scripts/monitoring/health-dashboard.sh
-
-# Resource/capacity analysis
+./scripts/diagnostics/cluster-health-check.sh
+./scripts/diagnostics/network-diagnostics.sh
 ./scripts/diagnostics/resource-analysis.sh
 ./scripts/diagnostics/performance-analysis.sh
-
-# Monitoring/alerts
 ./scripts/monitoring/setup-prometheus.sh
 ./scripts/monitoring/configure-alerts.sh
+./scripts/monitoring/health-dashboard.sh
 ```
 
-### SLI/SLO Management
-- **Availability SLO**: 99.9% uptime
-- **Latency SLI**: P95 < 200ms
-- **Error Rate SLI**: < 0.1% error rate
-- **Throughput SLI**: Handle peak load + 20%
+## SLI/SLO Starters
+- Availability SLO: 99.9%
+- Latency SLI: P95 < 200ms
+- Error Rate SLI: < 0.1%
+- Throughput: peak load + 20% buffer
 
-### Troubleshooting Focus Areas
-1. **Service degradation** - Latency spikes, error rates, availability
-2. **Resource exhaustion** - CPU, memory, storage, network
-3. **Scaling issues** - HPA, VPA, cluster autoscaler
-4. **Infrastructure failures** - Node failures, network partitions
-
-## Emergency Escalation
-For production incidents:
-1. **P0/P1**: Immediate escalation to on-call engineer
-2. **P2**: Run incident toolkit: `./scripts/diagnostics/incident-toolkit.sh`
-3. **P3/P4**: Standard troubleshooting procedures
+## Troubleshooting Focus
+- Service degradation: latency/error spikes, availability drops.
+- Resource exhaustion: CPU/memory/storage/network pressure.
+- Scaling: HPA/VPA/cluster-autoscaler behavior.
+- Infra failures: node/CNI/DNS/ingress/load balancer issues.

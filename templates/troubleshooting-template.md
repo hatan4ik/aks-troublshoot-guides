@@ -1,84 +1,73 @@
 # [Issue Title] Troubleshooting Guide
+Concise, task-first template in the O’Reilly style.
 
 ## Overview
-Brief description of the issue and its impact.
+What is broken, who it hurts, and the observed impact.
 
 ## Symptoms
-- List of observable symptoms
-- Error messages or behaviors
-- Affected components or services
+- Primary signals (errors, statuses, user impact)
+- Scope (namespaces/services/components affected)
 
 ## Prerequisites
-- Required tools and access
-- Minimum permissions needed
-- Environment requirements
+- Required tools/context (kubectl context, cloud CLI)
+- Access level (RBAC/IAM)
+- Data to capture before changes
 
-## Root Cause Analysis
+## Common Causes
+1. **Cause 1** — why it happens; likelihood
+2. **Cause 2** — why it happens; likelihood
+3. **Cause 3** — why it happens; likelihood
 
-### Common Causes
-1. **Cause 1**: Description and likelihood
-2. **Cause 2**: Description and likelihood
-3. **Cause 3**: Description and likelihood
-
-### Diagnostic Steps
+## Diagnose
 ```bash
-# Step 1: Check basic status
+# 1) Baseline status
 kubectl get <resource>
 
-# Step 2: Detailed inspection
+# 2) Details and events
 kubectl describe <resource> <name>
 
-# Step 3: Review logs
+# 3) Logs
 kubectl logs <pod-name>
 ```
+- Add any provider-specific checks (AKS/EKS) here.
 
-## Resolution Steps
-
-### Quick Fix (Immediate)
+## Resolve
+### Quick Fix (stabilize)
 ```bash
-# Commands for immediate resolution
 kubectl <command>
 ```
 
-### Permanent Fix (Long-term)
-1. **Step 1**: Detailed explanation
+### Permanent Fix (eliminate root cause)
+1. **Step 1**: Explanation + command
    ```bash
    kubectl <command>
    ```
-
-2. **Step 2**: Configuration changes
+2. **Step 2**: Config change
    ```yaml
-   # YAML configuration
+   # YAML snippet
    ```
-
-3. **Step 3**: Verification
+3. **Step 3**: Verify
    ```bash
-   # Verification commands
+   kubectl get <resource>
    ```
 
 ## Prevention
-- Best practices to prevent recurrence
-- Monitoring recommendations
-- Configuration guidelines
+- Guardrails, alerts, and policies
+- Config or coding practices to avoid recurrence
 
 ## Automation
-- Link to automated scripts
-- Monitoring alerts to set up
-- Self-healing mechanisms
+- Scripts/API endpoints to run
+- Alerts to configure; self-heal hooks
 
-## Related Issues
-- Links to related troubleshooting guides
-- Common follow-up problems
-- Dependencies and prerequisites
+## Related
+- Linked guides, dependencies, follow-on issues
 
 ## Escalation
-- When to escalate
-- Who to contact
-- Information to gather before escalating
+- When to page; required evidence; contacts
 
 ---
-**Difficulty**: [Beginner/Intermediate/Advanced]
-**Platform**: [AKS/EKS/GKE/Kubernetes]
-**Component**: [Networking/Storage/Security/Compute]
-**Last Updated**: [Date]
+**Difficulty**: [Beginner/Intermediate/Advanced]  
+**Platform**: [AKS/EKS/GKE/Kubernetes]  
+**Component**: [Networking/Storage/Security/Compute]  
+**Last Updated**: [Date]  
 **Reviewed By**: [Team/Role]

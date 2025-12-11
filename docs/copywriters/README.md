@@ -1,81 +1,41 @@
 # Technical Writing & Documentation Guide
+Keep docs clear, consistent, and testable. This is the style spine for the repo.
 
-## Overview
-Documentation standards, templates, and style guides for maintaining high-quality technical documentation across all Kubernetes troubleshooting materials.
+## Your Lens
+- Enforce clarity and accuracy; remove ambiguity.
+- Maintain and evolve templates; guard the voice and structure.
+- Keep links, commands, and outputs tested.
 
-## Key Responsibilities
-- Documentation quality and consistency
-- Template creation and maintenance
-- Style guide enforcement
-- Knowledge base organization
+## Writing Rules (O’Reilly-style)
+- Be direct and task-first; avoid fluff.
+- Show runnable commands with expected context.
+- Prefer bullets and short paragraphs; one idea per line.
+- Verify every command and link; note prerequisites.
 
-## Documentation Standards
-
-### Writing Guidelines
-- **Clarity**: Use simple, direct language
-- **Consistency**: Follow established terminology
-- **Completeness**: Include all necessary steps
-- **Accuracy**: Verify all technical information
-
-### Document Structure
+## Standard Structure
 ```markdown
 # Title (H1)
-## Overview (H2)
-## Prerequisites (H2)
-## Step-by-Step Instructions (H2)
-### Substep (H3)
-## Troubleshooting (H2)
-## Related Resources (H2)
+## Overview
+## Prerequisites
+## Steps (ordered)
+## Troubleshooting
+## Related Resources
 ```
 
-### Templates Available
-- [Troubleshooting Guide Template](../../templates/troubleshooting-template.md)
-- [Runbook Template](../../templates/runbook-template.md)
-- [Post-Mortem Template](../../templates/post-mortem-template.md)
-- [API Documentation Template](../../templates/api-doc-template.md)
+## Templates
+- [Troubleshooting Guide](../../templates/troubleshooting-template.md)
+- [Runbook](../../templates/runbook-template.md)
+- [Post-Mortem](../../templates/post-mortem-template.md)
+- [API Documentation](../../templates/api-doc-template.md)
 
-### Style Guide
-- **Code blocks**: Use syntax highlighting
-- **Commands**: Prefix with `$` for shell commands
-- **File paths**: Use backticks for inline code
-- **Links**: Use descriptive link text
-- **Images**: Include alt text for accessibility
+## Review Checklist
+- Technical accuracy verified and commands tested.
+- Links work; file paths correct.
+- Grammar/spelling clean; consistent terminology.
+- Accessibility: alt text for images; code fenced with language.
 
-### Content Review Checklist
-- [ ] Technical accuracy verified
-- [ ] Steps tested and validated
-- [ ] Links functional and current
-- [ ] Grammar and spelling checked
-- [ ] Formatting consistent
-- [ ] Accessibility guidelines followed
-
-### Documentation Metrics
-- **Completeness**: All scenarios covered
-- **Usability**: Clear step-by-step instructions
-- **Findability**: Proper tagging and categorization
-- **Maintainability**: Regular review and updates
-
-## Content Organization
-
-### Information Architecture
-```
-docs/
-├── getting-started/     # Onboarding materials
-├── troubleshooting/     # Issue-specific guides
-├── reference/           # API docs, CLI references
-├── tutorials/           # Step-by-step learning
-└── best-practices/      # Recommendations and patterns
-```
-
-### Tagging System
-- **Difficulty**: beginner, intermediate, advanced
-- **Platform**: aks, eks, gke, kubernetes
-- **Component**: networking, storage, security, monitoring
-- **Role**: architect, engineer, devops, sre
-
-## Quality Assurance
-Regular documentation audits ensure:
-- Technical accuracy
-- Link validity
-- Content freshness
-- User feedback integration
+## Taxonomy (tags)
+- Difficulty: beginner | intermediate | advanced
+- Platform: aks | eks | gke | kubernetes
+- Component: networking | storage | security | monitoring | compute
+- Role: architect | engineer | devops | sre
