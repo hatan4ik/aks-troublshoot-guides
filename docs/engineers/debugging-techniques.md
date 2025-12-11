@@ -5,7 +5,7 @@ Triage pod/service issues quickly with consistent steps.
 
 ## Checklist
 ```bash
-./scripts/diagnostics/pod-diagnostics.sh <pod> <ns>
+../../scripts/diagnostics/pod-diagnostics.sh <pod> <ns>
 kubectl logs <pod> -n <ns> --all-containers --tail=200
 kubectl describe pod <pod> -n <ns>
 ```

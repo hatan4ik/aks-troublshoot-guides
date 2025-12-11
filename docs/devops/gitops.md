@@ -10,7 +10,7 @@ Declarative delivery via controllers (Argo CD/Flux) syncing from Git to clusters
 
 ## Diagnostics
 ```bash
-./scripts/diagnostics/gitops-diagnostics.sh
+../../scripts/diagnostics/gitops-diagnostics.sh
 kubectl get applications -A   # Argo CD
 kubectl get kustomizations -A # Flux
 ```
@@ -23,4 +23,4 @@ kubectl get kustomizations -A # Flux
 
 ## Prevention
 - Admission policy to block out-of-band changes.
-- Alert on OutOfSync or degraded apps; integrate with `health-dashboard.sh`.
+- Alert on OutOfSync or degraded apps; integrate with `../../scripts/monitoring/health-dashboard.sh`.

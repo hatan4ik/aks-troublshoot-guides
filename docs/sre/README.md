@@ -13,13 +13,13 @@ Operate for uptime and fast recovery. This is a concise, action-first reference.
 
 ## Run These First
 ```bash
-./scripts/diagnostics/cluster-health-check.sh
-./scripts/diagnostics/network-diagnostics.sh
-./scripts/diagnostics/resource-analysis.sh
-./scripts/diagnostics/performance-analysis.sh
-./scripts/monitoring/setup-prometheus.sh
-./scripts/monitoring/configure-alerts.sh
-./scripts/monitoring/health-dashboard.sh
+../../scripts/diagnostics/cluster-health-check.sh
+../../scripts/diagnostics/network-diagnostics.sh
+../../scripts/diagnostics/resource-analysis.sh
+../../scripts/diagnostics/performance-analysis.sh
+../../scripts/monitoring/setup-prometheus.sh
+../../scripts/monitoring/configure-alerts.sh
+../../scripts/monitoring/health-dashboard.sh
 ```
 
 ## SLI/SLO Starters

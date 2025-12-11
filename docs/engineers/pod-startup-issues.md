@@ -10,7 +10,7 @@ Pods stuck Pending/Init/CrashLoop due to resources, scheduling, or config.
 
 ## Diagnostics
 ```bash
-./scripts/diagnostics/pod-diagnostics.sh <pod> <ns>
+../../scripts/diagnostics/pod-diagnostics.sh <pod> <ns>
 kubectl describe pod <pod> -n <ns>
 kubectl get events -n <ns> --sort-by=.lastTimestamp | tail
 ```

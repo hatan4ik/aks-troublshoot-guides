@@ -20,7 +20,7 @@ kubectl get events -n <ns> --sort-by=.lastTimestamp | tail
 ```
 
 ## Run These First When Things Break
-- Pod-level triage: `./scripts/diagnostics/pod-diagnostics.sh <pod> <ns>`
-- Resource pressure: `./scripts/diagnostics/resource-analysis.sh`
-- Network/DNS: `./scripts/diagnostics/network-diagnostics.sh`
-- Deployment stuck: `./scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`
+- Pod-level triage: `../../scripts/diagnostics/pod-diagnostics.sh <pod> <ns>`
+- Resource pressure: `../../scripts/diagnostics/resource-analysis.sh`
+- Network/DNS: `../../scripts/diagnostics/network-diagnostics.sh`
+- Deployment stuck: `../../scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`

@@ -5,7 +5,7 @@ Identify CPU/memory/I/O hotspots and latency paths in Kubernetes workloads.
 
 ## Diagnostics
 ```bash
-./scripts/diagnostics/performance-analysis.sh
+../../scripts/diagnostics/performance-analysis.sh
 kubectl top pods -n <ns>
 kubectl get hpa -n <ns>
 ```

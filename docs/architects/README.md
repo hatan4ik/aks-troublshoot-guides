@@ -11,9 +11,9 @@ Design for resilience, security, and scale. Use these chapters to set guardrails
 - Design Decisions: [Cluster Sizing](cluster-sizing.md), [Node Pools](node-pools.md), [Storage Architecture](storage-architecture.md), [Service Mesh](service-mesh.md)
 
 ## When Things Break
-- Cluster-level health: `./scripts/diagnostics/cluster-health-check.sh`
-- Security posture: `./scripts/diagnostics/security-audit.sh`
-- Network/DNS: `./scripts/diagnostics/network-diagnostics.sh`
-- Storage binding/attach: `./scripts/diagnostics/storage-analysis.sh`
+- Cluster-level health: `../../scripts/diagnostics/cluster-health-check.sh`
+- Security posture: `../../scripts/diagnostics/security-audit.sh`
+- Network/DNS: `../../scripts/diagnostics/network-diagnostics.sh`
+- Storage binding/attach: `../../scripts/diagnostics/storage-analysis.sh`
 
 Escalate design changes early if issues recur across teams.

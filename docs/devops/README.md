@@ -13,12 +13,12 @@ Run delivery, infra automation, and safe rollouts. This guide emphasizes short r
 
 ## Run These First
 ```bash
-./scripts/diagnostics/cluster-health-check.sh
-./scripts/diagnostics/pipeline-debug.sh
-./scripts/diagnostics/deployment-diagnostics.sh <deployment> <namespace>
-./scripts/diagnostics/resource-analysis.sh
-./scripts/diagnostics/performance-analysis.sh
-./scripts/diagnostics/security-audit.sh
+../../scripts/diagnostics/cluster-health-check.sh
+../../scripts/diagnostics/pipeline-debug.sh
+../../scripts/diagnostics/deployment-diagnostics.sh <deployment> <namespace>
+../../scripts/diagnostics/resource-analysis.sh
+../../scripts/diagnostics/performance-analysis.sh
+../../scripts/diagnostics/security-audit.sh
 ```
 
 ## Troubleshooting Focus

@@ -7,7 +7,7 @@ Build, size, security, and pull problems for application images.
 ```bash
 docker build .
 kubectl describe pod <pod> -n <ns> | grep -i image
-./scripts/diagnostics/pod-diagnostics.sh <pod> <ns>
+../../scripts/diagnostics/pod-diagnostics.sh <pod> <ns>
 ```
 - Check image size and layers; scan for CVEs; validate entrypoint.
 

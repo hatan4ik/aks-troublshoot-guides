@@ -14,9 +14,9 @@ Standard response for P0/P1 Kubernetes/AKS/EKS incidents. Goal: restore service 
 2. Page on-call and open bridge/channel.
 3. Run quick health checks:
 ```bash
-./scripts/diagnostics/cluster-health-check.sh
-./scripts/diagnostics/network-diagnostics.sh
-./scripts/diagnostics/pod-diagnostics.sh -a <namespace>
+../scripts/diagnostics/cluster-health-check.sh
+../scripts/diagnostics/network-diagnostics.sh
+../scripts/diagnostics/pod-diagnostics.sh -a <namespace>
 ```
 4. Capture events/logs; avoid speculative changes.
 
@@ -39,5 +39,5 @@ Standard response for P0/P1 Kubernetes/AKS/EKS incidents. Goal: restore service 
 - Confirm alerts cleared; validate customer journeys.
 
 ## Post-Incident
-- Open post-mortem using `templates/post-mortem-template.md`.
+- Open post-mortem using `../templates/post-mortem-template.md`.
 - Create action items (prevent/detect/mitigate).

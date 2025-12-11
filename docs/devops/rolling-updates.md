@@ -11,7 +11,7 @@ Incrementally replace pods to avoid downtime.
 ## Diagnostics
 ```bash
 kubectl rollout status deploy/<name> -n <ns>
-./scripts/diagnostics/deployment-diagnostics.sh
+../../scripts/diagnostics/deployment-diagnostics.sh
 kubectl get events -n <ns> --sort-by=.lastTimestamp | tail
 ```
 - Watch for Pending/CrashLoop/ImagePull issues.
