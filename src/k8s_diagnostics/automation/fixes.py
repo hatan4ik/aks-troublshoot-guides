@@ -152,3 +152,11 @@ class AutoFixer:
             }
         except ApiException as e:
             return {"error": str(e)}
+
+    async def update_certificates(self) -> Dict:
+        """Placeholder for certificate renewal logic"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated certificate renewal is not yet implemented. Please use cert-manager or your cloud provider's tools.",
+            "guidance": "If using cert-manager, you can trigger a renewal with: `kubectl annotate certificate <name> -n <ns> cert-manager.io/renewal-reason=\"manual-$(date +%s)\"`"
+        }

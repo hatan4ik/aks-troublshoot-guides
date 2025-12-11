@@ -80,6 +80,27 @@ python k8s-diagnostics-cli.py dnsfix
 
 # Scale a deployment
 python k8s-diagnostics-cli.py scale default my-deploy 3
+
+# Update certificates
+python k8s-diagnostics-cli.py updatecerts
+
+# Setup prometheus
+python k8s-diagnostics-cli.py prom-setup
+
+# Configure alerts
+python k8s-diagnostics-cli.py config-alerts
+
+# Create grafana dashboard
+python k8s-diagnostics-cli.py create-dash
+
+# Setup log aggregation
+python k8s-diagnostics-cli.py log-setup
+
+# Analyze performance
+python k8s-diagnostics-cli.py perf-analysis
+
+# Scan security
+python k8s-diagnostics-cli.py sec-scan
 ```
 
 ## 🔧 Team Integration

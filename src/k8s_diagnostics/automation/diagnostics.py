@@ -254,3 +254,52 @@ class DiagnosticsEngine:
             if not ingress:
                 pending.append(f"{svc.metadata.namespace}/{svc.metadata.name}")
         return {"pending": pending, "total": len(lbs.items)}
+
+    async def setup_prometheus(self) -> Dict:
+        """Placeholder for prometheus setup"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated prometheus setup is not yet implemented. Please use the helm chart.",
+            "guidance": "You can use the script: `./scripts/monitoring/setup-prometheus.sh`"
+        }
+
+    async def configure_alerts(self) -> Dict:
+        """Placeholder for alert configuration"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated alert configuration is not yet implemented. Please use the script.",
+            "guidance": "You can use the script: `./scripts/monitoring/configure-alerts.sh`"
+        }
+
+    async def create_grafana_dashboard(self) -> Dict:
+        """Placeholder for grafana dashboard creation"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated grafana dashboard creation is not yet implemented. Please use the script.",
+            "guidance": "You can use the script: `./scripts/monitoring/health-dashboard.sh`"
+        }
+
+    async def setup_log_aggregation(self) -> Dict:
+        """Placeholder for log aggregation setup"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated log aggregation setup is not yet implemented. Please use the script.",
+            "guidance": "You can use the script: `./scripts/monitoring/log-aggregation.sh`"
+        }
+
+    async def analyze_performance(self) -> Dict:
+        """Placeholder for performance analysis"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated performance analysis is not yet implemented. Please use the script.",
+            "guidance": "You can use the script: `./scripts/diagnostics/performance-analysis.sh`"
+        }
+
+    async def scan_security(self) -> Dict:
+        """Placeholder for security scanning"""
+        return {
+            "status": "manual_action_required",
+            "message": "Automated security scanning is not yet implemented. Please use the scripts.",
+            "guidance": "You can use the scripts in `./scripts/diagnostics/` such as `security-audit.sh`, `security-scan.sh`, `network-security-scan.sh`, and `image-security-scan.sh`"
+        }
+

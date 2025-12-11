@@ -57,11 +57,46 @@ class DiagnosticsCLI:
         result = await self.fixer.scale_resources(namespace, deployment, int(replicas))
         print(json.dumps(result, indent=2))
 
+    async def update_certs(self):
+        """Update certificates"""
+        result = await self.fixer.update_certificates()
+        print(json.dumps(result, indent=2))
+
+    async def setup_prometheus(self):
+        """Setup prometheus"""
+        result = await self.diagnostics.setup_prometheus()
+        print(json.dumps(result, indent=2))
+
+    async def configure_alerts(self):
+        """Configure alerts"""
+        result = await self.diagnostics.configure_alerts()
+        print(json.dumps(result, indent=2))
+
+    async def create_dashboard(self):
+        """Create grafana dashboard"""
+        result = await self.diagnostics.create_grafana_dashboard()
+        print(json.dumps(result, indent=2))
+
+    async def setup_logging(self):
+        """Setup log aggregation"""
+        result = await self.diagnostics.setup_log_aggregation()
+        print(json.dumps(result, indent=2))
+
+    async def analyze_performance(self):
+        """Analyze performance"""
+        result = await self.diagnostics.analyze_performance()
+        print(json.dumps(result, indent=2))
+
+    async def scan_security(self):
+        """Scan security"""
+        result = await self.diagnostics.scan_security()
+        print(json.dumps(result, indent=2))
+
 def main():
     cli = DiagnosticsCLI()
     
     if len(sys.argv) < 2:
-        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale]")
+        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale|updatecerts|prom-setup|config-alerts|create-dash|log-setup|perf-analysis|sec-scan]")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -82,6 +117,20 @@ def main():
         asyncio.run(cli.fix_dns())
     elif command == "scale" and len(sys.argv) >= 5:
         asyncio.run(cli.scale(sys.argv[2], sys.argv[3], sys.argv[4]))
+    elif command == "updatecerts":
+        asyncio.run(cli.update_certs())
+    elif command == "prom-setup":
+        asyncio.run(cli.setup_prometheus())
+    elif command == "config-alerts":
+        asyncio.run(cli.configure_alerts())
+    elif command == "create-dash":
+        asyncio.run(cli.create_dashboard())
+    elif command == "log-setup":
+        asyncio.run(cli.setup_logging())
+    elif command == "perf-analysis":
+        asyncio.run(cli.analyze_performance())
+    elif command == "sec-scan":
+        asyncio.run(cli.scan_security())
     else:
         print("Invalid command or missing arguments")
         sys.exit(1)
