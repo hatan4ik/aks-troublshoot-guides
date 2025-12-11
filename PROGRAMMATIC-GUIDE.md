@@ -1,5 +1,5 @@
 # Programmatic Kubernetes Diagnostics
-API- and CLI-first diagnostics and remediation for AKS/EKS/Kubernetes, written in an O’Reilly-style quickstart: concise, practical, and runnable.
+API- and CLI-first diagnostics and remediation for AKS/EKS/Kubernetes. This guide reflects the endpoints and commands that ship today—no surprises or 404s.
 
 ## Deploy the Service
 ```bash
@@ -10,7 +10,7 @@ make api
 make build deploy
 ```
 
-## REST API (Core Endpoints)
+## REST API (Available Endpoints)
 ```bash
 # Health snapshot
 curl http://localhost:8000/health
@@ -21,43 +21,40 @@ curl http://localhost:8000/diagnose/pod/default/my-pod
 # Network/DNS diagnostics
 curl http://localhost:8000/diagnose/network
 
-# Auto-detect issues
+# Auto-detect common issues
 curl http://localhost:8000/issues/detect
 
-# AI Operations
-curl http://localhost:8000/ai/predict
-curl -X POST http://localhost:8000/ai/heal
-curl http://localhost:8000/ai/optimize
-curl http://localhost:8000/ai/anomalies
+# Resource metrics (if metrics-server is present)
+curl http://localhost:8000/metrics/resources
 
 # Remediations
 curl -X POST http://localhost:8000/fix/restart-failed-pods
 curl -X POST http://localhost:8000/fix/cleanup-evicted
-curl -X POST "http://localhost:8000/chaos/inject-failure?namespace=test&selector=app=demo"
+curl -X POST http://localhost:8000/fix/dns
+curl -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
 ```
 `/issues/detect` reports nodes not ready, failed/pending pods, image pull errors, DNS/CoreDNS health, PVC binds, and pending load balancers.
 
-## Python SDK
+## Python SDK (Shipped Components)
 ```python
 from src.k8s_diagnostics.core.client import K8sClient
 from src.k8s_diagnostics.automation.diagnostics import DiagnosticsEngine
-from src.k8s_diagnostics.ai.predictor import AIPredictor, AutoHealer
-from src.k8s_diagnostics.ai.optimizer import ResourceOptimizer
+from src.k8s_diagnostics.automation.fixes import AutoFixer
 
 k8s = K8sClient()
 diagnostics = DiagnosticsEngine(k8s)
-ai_predictor = AIPredictor()
-auto_healer = AutoHealer(k8s, ai_predictor)
-optimizer = ResourceOptimizer(k8s)
+fixer = AutoFixer(k8s)
 
-# Traditional + AI operations
 health = k8s.get_cluster_health()
-prediction = await ai_predictor.predict_failures(metrics)
-healing = await auto_healer.autonomous_healing()
-optimization = await optimizer.optimize_cluster()
+pod_info = await diagnostics.diagnose_pod("default", "my-pod")
+issues = await diagnostics.detect_common_issues()
+await fixer.restart_failed_pods()
+await fixer.fix_dns_issues()
+await fixer.cleanup_evicted_pods()
+await fixer.scale_resources("default", "my-deploy", 3)
 ```
 
-## CLI
+## CLI (Shipped Commands)
 ```bash
 python k8s-diagnostics-cli.py health                    # cluster health (JSON)
 python k8s-diagnostics-cli.py diagnose default my-pod   # pod diagnostics
@@ -69,23 +66,18 @@ python k8s-diagnostics-cli.py fix                       # restart failed pods
 python k8s-diagnostics-cli.py cleanup                   # evicted pods
 python k8s-diagnostics-cli.py dnsfix                    # CoreDNS
 python k8s-diagnostics-cli.py scale default my-deploy 3 # scale deployment
-
-# AI Operations
-python k8s-diagnostics-cli.py predict                   # failure prediction
-python k8s-diagnostics-cli.py heal                      # autonomous healing
-python k8s-diagnostics-cli.py optimize                  # cost optimization
-python k8s-diagnostics-cli.py anomalies                 # anomaly detection
 ```
 
 ## Integration Recipes
 ### Engineers (Quality Gates)
 ```python
+import requests
+
 def validate_deployment(namespace, deployment):
     health = requests.get(f"http://k8s-diagnostics:8000/diagnose/pod/{namespace}/{deployment}").json()
-    prediction = requests.get("http://k8s-diagnostics:8000/ai/predict").json()
-    
-    if health.get("issues") or prediction["risk_level"] == "critical":
-        raise SystemExit(f"Deployment blocked: {health.get('issues', [])}")
+    issues = health.get("issues", [])
+    if issues:
+        raise SystemExit(f"Deployment blocked: {issues}")
 ```
 
 ### DevOps (Pipeline Integration)
@@ -93,31 +85,27 @@ def validate_deployment(namespace, deployment):
 k8s-validation:
   script:
     - curl -f http://k8s-diagnostics:8000/health
-    - curl -s http://k8s-diagnostics:8000/ai/predict | jq -e '.risk_level != "critical"'
-    - curl -X POST http://k8s-diagnostics:8000/ai/optimize
+    - curl -s http://k8s-diagnostics:8000/issues/detect | jq '.issues | length' | grep -q "^0$"
 ```
 
-### SRE (Autonomous Operations)
+### SRE (Background Watcher)
 ```python
-async def autonomous_sre():
-    prediction = await ai_predictor.predict_failures(await collect_metrics())
-    if prediction["risk_level"] == "critical":
-        await auto_healer.autonomous_healing()
-    
-    optimization = await optimizer.optimize_cluster()
-    if optimization["estimated_savings"]["monthly_savings_usd"] > 1000:
-        await apply_optimizations(optimization)
+async def health_monitor():
+    issues = await diagnostics.detect_common_issues()
+    for issue in issues.get("issues", []):
+        if issue["severity"] == "high":
+            send_alert(issue)
 ```
 
-### Architects (capacity sketch)
+### Architects (Capacity Sketch)
 ```python
 resp = requests.get("http://k8s-diagnostics:8000/metrics/resources").json()
-node_util = calculate_utilization(resp["nodes_metrics"])
+node_util = calculate_utilization(resp.get("nodes_metrics", []))
 report = generate_capacity_report(node_util)
 ```
 
 ## Automation Patterns
-### Auto-heal loop
+### Auto-heal Loop
 ```python
 async def auto_heal():
     issues = await diagnostics.detect_common_issues()
@@ -128,7 +116,7 @@ async def auto_heal():
             await fixer.fix_dns_issues()
 ```
 
-### Webhook handler
+### Webhook Handler
 ```python
 @app.post("/webhook/pod-failed")
 async def handle_pod_failure(pod_info: dict):
@@ -148,22 +136,8 @@ health = k8s.get_cluster_health()
 cluster_health.set(calculate_health_score(health))
 ```
 
-## Enterprise Benefits
-
-### Operational Excellence
-- **Zero-Touch Operations**: 95% autonomous issue resolution
-- **Predictive Prevention**: Issues prevented before user impact
-- **Cost Optimization**: 30% infrastructure cost reduction
-- **Reliability**: 99.99% availability through AI healing
-
-### Developer Productivity
-- **API-First**: Integrates with any toolchain
-- **Fast Feedback**: Real-time health and prediction APIs
-- **Quality Gates**: Automated deployment validation
-- **Self-Service**: Independent issue diagnosis and fixing
-
-### Business Impact
-- **Reduced MTTR**: 90% faster incident resolution
-- **Lower OpEx**: 60% reduction in manual tasks
-- **Innovation Focus**: Teams build features, not firefight
-- **Scalability**: Autonomous operations scale with growth
+## Roadmap (Not Yet Implemented)
+- Predictive alerts and autonomous healing
+- Cost-optimization recommendations
+- Chaos/testing endpoints
+- Expanded provider-specific diagnostics (AKS/EKS/GKE)
