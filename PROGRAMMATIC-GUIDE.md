@@ -24,11 +24,16 @@ curl http://localhost:8000/diagnose/network
 # Auto-detect issues
 curl http://localhost:8000/issues/detect
 
+# AI Operations
+curl http://localhost:8000/ai/predict
+curl -X POST http://localhost:8000/ai/heal
+curl http://localhost:8000/ai/optimize
+curl http://localhost:8000/ai/anomalies
+
 # Remediations
 curl -X POST http://localhost:8000/fix/restart-failed-pods
 curl -X POST http://localhost:8000/fix/cleanup-evicted
-curl -X POST http://localhost:8000/fix/dns
-curl -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
+curl -X POST "http://localhost:8000/chaos/inject-failure?namespace=test&selector=app=demo"
 ```
 `/issues/detect` reports nodes not ready, failed/pending pods, image pull errors, DNS/CoreDNS health, PVC binds, and pending load balancers.
 
@@ -36,17 +41,20 @@ curl -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
 ```python
 from src.k8s_diagnostics.core.client import K8sClient
 from src.k8s_diagnostics.automation.diagnostics import DiagnosticsEngine
-from src.k8s_diagnostics.automation.fixes import AutoFixer
+from src.k8s_diagnostics.ai.predictor import AIPredictor, AutoHealer
+from src.k8s_diagnostics.ai.optimizer import ResourceOptimizer
 
 k8s = K8sClient()
 diagnostics = DiagnosticsEngine(k8s)
-fixer = AutoFixer(k8s)
+ai_predictor = AIPredictor()
+auto_healer = AutoHealer(k8s, ai_predictor)
+optimizer = ResourceOptimizer(k8s)
 
+# Traditional + AI operations
 health = k8s.get_cluster_health()
-pod_info = await diagnostics.diagnose_pod("default", "my-pod")
-issues = await diagnostics.detect_common_issues()
-await fixer.restart_failed_pods()
-await fixer.fix_dns_issues()
+prediction = await ai_predictor.predict_failures(metrics)
+healing = await auto_healer.autonomous_healing()
+optimization = await optimizer.optimize_cluster()
 ```
 
 ## CLI
@@ -62,40 +70,43 @@ python k8s-diagnostics-cli.py cleanup                   # evicted pods
 python k8s-diagnostics-cli.py dnsfix                    # CoreDNS
 python k8s-diagnostics-cli.py scale default my-deploy 3 # scale deployment
 
-# Intelligence
-python k8s-diagnostics-cli.py remediate                 # auto-remediate
-python k8s-diagnostics-cli.py predict                   # predict issues
-python k8s-diagnostics-cli.py rca                       # ML-based root cause analysis
-python k8s-diagnostics-cli.py alerts                    # intelligent alerting
+# AI Operations
+python k8s-diagnostics-cli.py predict                   # failure prediction
+python k8s-diagnostics-cli.py heal                      # autonomous healing
+python k8s-diagnostics-cli.py optimize                  # cost optimization
+python k8s-diagnostics-cli.py anomalies                 # anomaly detection
 ```
 
 ## Integration Recipes
-### Engineers (CI/CD guardrail)
+### Engineers (Quality Gates)
 ```python
-import requests
-
-def gate_release(namespace, deployment):
-    resp = requests.get(f"http://k8s-diagnostics:8000/diagnose/pod/{namespace}/{deployment}")
-    data = resp.json()
-    if data.get("issues"):
-        raise SystemExit(f"Issues detected: {data['issues']}")
+def validate_deployment(namespace, deployment):
+    health = requests.get(f"http://k8s-diagnostics:8000/diagnose/pod/{namespace}/{deployment}").json()
+    prediction = requests.get("http://k8s-diagnostics:8000/ai/predict").json()
+    
+    if health.get("issues") or prediction["risk_level"] == "critical":
+        raise SystemExit(f"Deployment blocked: {health.get('issues', [])}")
 ```
 
-### DevOps (pipeline health stage)
+### DevOps (Pipeline Integration)
 ```yaml
-k8s-health-check:
+k8s-validation:
   script:
     - curl -f http://k8s-diagnostics:8000/health
-    - curl -s http://k8s-diagnostics:8000/issues/detect | jq '.issues | length' | grep -q "^0$"
+    - curl -s http://k8s-diagnostics:8000/ai/predict | jq -e '.risk_level != "critical"'
+    - curl -X POST http://k8s-diagnostics:8000/ai/optimize
 ```
 
-### SRE (background watcher)
+### SRE (Autonomous Operations)
 ```python
-async def health_monitor():
-    issues = await diagnostics.detect_common_issues()
-    for issue in issues.get("issues", []):
-        if issue["severity"] == "high":
-            send_alert(issue)
+async def autonomous_sre():
+    prediction = await ai_predictor.predict_failures(await collect_metrics())
+    if prediction["risk_level"] == "critical":
+        await auto_healer.autonomous_healing()
+    
+    optimization = await optimizer.optimize_cluster()
+    if optimization["estimated_savings"]["monthly_savings_usd"] > 1000:
+        await apply_optimizations(optimization)
 ```
 
 ### Architects (capacity sketch)
