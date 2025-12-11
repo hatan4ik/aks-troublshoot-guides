@@ -3,55 +3,65 @@
 
 ### 🚨 Critical Issues (P0/P1)
 
-| Issue | Symptoms | Automation | Team Focus |
-|-------|----------|------------|------------|
-| **Cluster Down** | API server unreachable | `cluster-health-check.sh` | SRE, Architects |
-| **Pod CrashLoopBackOff** | Continuous restarts | `pod-diagnostics.sh` | Engineers, DevOps |
-| **ImagePullBackOff** | Cannot pull images | `pod-diagnostics.sh` | Engineers, DevOps |
-| **Node NotReady** | Nodes unavailable | `cluster-health-check.sh` | SRE, DevOps |
-| **DNS Failures** | Service discovery broken | `network-diagnostics.sh` | SRE, Engineers |
-| **Storage Failures** | PV/PVC issues | `cluster-health-check.sh` | Architects, SRE |
+| Issue | Symptoms | Business Impact | Automation | Team Focus |
+|-------|----------|-----------------|------------|------------|
+| **Cluster Down** | API server unreachable | Service Outage | `cluster-health-check.sh` | SRE, Architects |
+| **Pod CrashLoopBackOff** | Continuous restarts | Service Degradation | `pod-diagnostics.sh` | Engineers, DevOps |
+| **ImagePullBackOff** | Cannot pull images | Deployment Delays | `pod-diagnostics.sh` | Engineers, DevOps |
+| **Node NotReady** | Nodes unavailable | Capacity Loss | `cluster-health-check.sh` | SRE, DevOps |
+| **DNS Failures** | Service discovery broken | Service Outage | `network-diagnostics.sh` | SRE, Engineers |
+| **Storage Failures** | PV/PVC issues | Data Loss Risk | `cluster-health-check.sh` | Architects, SRE |
 
 ### 🔧 Infrastructure Issues (P2)
 
-| Issue | Symptoms | Automation | Team Focus |
-|-------|----------|------------|------------|
-| **Resource Exhaustion** | High CPU/Memory usage | `resource-analysis.sh` | SRE, Architects |
-| **Network Policies** | Connectivity blocked | `network-diagnostics.sh` | Architects, SRE |
-| **RBAC Issues** | Permission denied | Manual diagnosis | Architects, SRE |
-| **Ingress Problems** | External access issues | `network-diagnostics.sh` | DevOps, SRE |
-| **Load Balancer Issues** | Service unreachable | `network-diagnostics.sh` | DevOps, SRE |
-| **Certificate Expiry** | TLS/SSL failures | Manual diagnosis | DevOps, SRE |
+| Issue | Symptoms | Business Impact | Automation | Team Focus |
+|-------|----------|-----------------|------------|------------|
+| **Resource Exhaustion** | High CPU/Memory usage | Performance Issues | `resource-analysis.sh` | SRE, Architects |
+| **Network Policies** | Connectivity blocked | Service Disruption | `network-diagnostics.sh` | Architects, SRE |
+| **RBAC Issues** | Permission denied | Security Risks | Manual diagnosis | Architects, SRE |
+| **Ingress Problems** | External access issues | Service Unavailability | `network-diagnostics.sh` | DevOps, SRE |
+| **Load Balancer Issues** | Service unreachable | Service Unavailability | `network-diagnostics.sh` | DevOps, SRE |
+| **Certificate Expiry** | TLS/SSL failures | Security Warnings | Manual diagnosis | DevOps, SRE |
 
 ### 📊 Performance Issues (P3)
 
-| Issue | Symptoms | Automation | Team Focus |
-|-------|----------|------------|------------|
-| **Slow Response Times** | High latency | `performance-analysis.sh` | Engineers, SRE |
-| **Memory Leaks** | Increasing memory usage | `resource-analysis.sh` | Engineers, SRE |
-| **CPU Throttling** | Performance degradation | `resource-analysis.sh` | Engineers, SRE |
-| **Disk I/O Issues** | Storage bottlenecks | `storage-analysis.sh` | SRE, Architects |
-| **Network Latency** | Slow inter-pod communication | `network-diagnostics.sh` | SRE, Architects |
+| Issue | Symptoms | Business Impact | Automation | Team Focus |
+|-------|----------|-----------------|------------|------------|
+| **Slow Response Times** | High latency | User Dissatisfaction | `performance-analysis.sh` | Engineers, SRE |
+| **Memory Leaks** | Increasing memory usage | Increased Costs | `resource-analysis.sh` | Engineers, SRE |
+| **CPU Throttling** | Performance degradation | User Experience | `resource-analysis.sh` | Engineers, SRE |
+| **Disk I/O Issues** | Storage bottlenecks | Slow Operations | `storage-analysis.sh` | SRE, Architects |
+| **Network Latency** | Slow inter-pod communication| Performance Impact | `network-diagnostics.sh` | SRE, Architects |
 
 ### 🔐 Security Issues (P2/P3)
 
-| Issue | Symptoms | Automation | Team Focus |
-|-------|----------|------------|------------|
-| **Security Policy Violations** | Blocked operations | `security-audit.sh` | Architects, SRE |
-| **Secrets Exposure** | Credentials in logs/configs | `security-scan.sh` | All Teams |
-| **Privilege Escalation** | Unauthorized access | Manual investigation | Architects, SRE |
-| **Network Security** | Unauthorized traffic | `network-security-scan.sh` | Architects, SRE |
-| **Image Vulnerabilities** | CVEs in containers | `image-security-scan.sh` | DevOps, Engineers |
+| Issue | Symptoms | Business Impact | Automation | Team Focus |
+|-------|----------|-----------------|------------|------------|
+| **Policy Violations** | Blocked operations | Compliance Failures | `security-audit.sh` | Architects, SRE |
+| **Secrets Exposure** | Credentials in logs | Data Breach Risk | `security-scan.sh` | All Teams |
+| **Privilege Escalation**| Unauthorized access | Security Breach | Manual investigation| Architects, SRE |
+| **Network Security** | Unauthorized traffic | Security Breach | `network-security-scan.sh` | Architects, SRE |
+| **Image Vulnerabilities**| CVEs in containers | Exploit Risk | `image-security-scan.sh` | DevOps, Engineers |
 
 ### 🔄 Deployment Issues (P2/P3)
 
-| Issue | Symptoms | Automation | Team Focus |
-|-------|----------|------------|------------|
-| **Rolling Update Stuck** | Deployment not progressing | `deployment-diagnostics.sh` | DevOps, Engineers |
-| **Config Drift** | Inconsistent configurations | `config-validation.sh` | DevOps, SRE |
-| **Rollback Failures** | Cannot revert changes | `rollback-diagnostics.sh` | DevOps, SRE |
-| **Helm Issues** | Chart deployment failures | `helm-diagnostics.sh` | DevOps, Engineers |
-| **GitOps Sync Issues** | Git-cluster drift | `gitops-diagnostics.sh` | DevOps, SRE |
+| Issue | Symptoms | Business Impact | Automation | Team Focus |
+|-------|----------|-----------------|------------|------------|
+| **Update Stuck** | Deployment not progressing| Release Delays | `deployment-diagnostics.sh` | DevOps, Engineers |
+| **Config Drift** | Inconsistent configurations| Unpredictable Behavior| `config-validation.sh` | DevOps, SRE |
+| **Rollback Failures** | Cannot revert changes | Extended Downtime | `rollback-diagnostics.sh` | DevOps, SRE |
+| **Helm Issues** | Chart deployment failures| Deployment Failures | `helm-diagnostics.sh` | DevOps, Engineers |
+| **GitOps Sync Issues** | Git-cluster drift | Inconsistent State | `gitops-diagnostics.sh` | DevOps, SRE |
+
+### 💰 Cost Optimization Issues (P3)
+
+| Issue | Symptoms | Business Impact | Automation | Team Focus |
+|-------|----------|-----------------|------------|------------|
+| **Unused Resources** | Idle services, disks | Wasted Spend | `resource-analysis.sh` | Architects, SRE |
+| **Overprovisioning** | Low CPU/Memory utilization| Inflated Costs | `resource-analysis.sh` | Architects, SRE |
+| **Suboptimal Bidding**| High spot instance costs | Increased Costs | Manual review | Architects, SRE |
+| **No Autoscaling** | Fixed replica counts | Missed Savings | `hpa-check.sh` | Architects, DevOps |
+| **Logging/Monitoring Costs**| Excessive data ingestion| High operational costs| `monitoring-audit.sh` | SRE, DevOps |
 
 ## 🤖 Automation Coverage
 
@@ -67,6 +77,8 @@
 - ✅ `gitops-diagnostics.sh` - Argo/Flux sync health
 - ✅ `helm-diagnostics.sh` - Helm release checks
 - ✅ `pipeline-debug.sh` - CI/CD troubleshooting helper
+- 📋 `hpa-check.sh` - HPA configuration and effectiveness
+- 📋 `monitoring-audit.sh` - Audit logging/monitoring costs
 
 ### Fix Scripts (Planned)
 - ✅ `auto-restart-failed-pods.sh` - Restart crashlooping pods
@@ -86,7 +98,7 @@
 | Issue Category | Architects | Engineers | DevOps | SRE | Writers |
 |----------------|------------|-----------|---------|-----|---------|
 | **Cluster Design** | 🎯 Primary | Support | Support | Support | Document |
-| **Application Issues** | Review | 🎯 Primary | Support | Support | Document |
+| **Application Issues**| Review | 🎯 Primary | Support | Support | Document |
 | **CI/CD Problems** | Review | Support | 🎯 Primary | Support | Document |
 | **Operations** | Review | Support | Support | 🎯 Primary | Document |
 | **Documentation** | Review | Review | Review | Review | 🎯 Primary |

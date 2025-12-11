@@ -1,82 +1,60 @@
-# Kubernetes/AKS/EKS Troubleshooting Guide
-## From Zero to Hero with Automation
+# Kubernetes/AKS/EKS Troubleshooting Guide  
+Zero-to-hero with automation for architects, engineers, DevOps, SREs, and technical writers.
 
-A comprehensive troubleshooting guide for Kubernetes, Azure Kubernetes Service (AKS), and Amazon Elastic Kubernetes Service (EKS) designed for architects, engineers, DevOps, SREs, and technical writers.
+## How to Use This Guide
+- **In an incident**: Run the Emergency Checklist below, then dive into the playbook for your symptom.
+- **For prevention**: Follow the role guides and automation sections to bake guardrails into CI/CD and operations.
+- **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
 
-## 📋 Table of Contents
+## Quick Start (Do This First)
+- Install and configure `kubectl`; add Azure CLI (AKS) or AWS CLI (EKS) as needed.
+- Validate connectivity: `kubectl cluster-info`
+- Run the Emergency Checklist:
+  1) Cluster health: `./scripts/diagnostics/cluster-health-check.sh`  
+  2) Pod issues: `./scripts/diagnostics/pod-diagnostics.sh`  
+  3) Network/DNS: `./scripts/diagnostics/network-diagnostics.sh`  
+  4) Resources: `./scripts/diagnostics/resource-analysis.sh`  
+  5) Storage: `./scripts/diagnostics/storage-analysis.sh`  
+  6) Stuck rollout: `./scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`  
+  7) DNS repair: `./scripts/fixes/fix-dns-issues.sh`
 
-- [Quick Start](#quick-start)
-- [Architecture Overview](#architecture-overview)
-- [Common Issues & Solutions](#common-issues--solutions)
-- [Automation Scripts](#automation-scripts)
-- [Team-Specific Guides](#team-specific-guides)
-- [Monitoring & Observability](#monitoring--observability)
-- [Best Practices](#best-practices)
-
-## 🚀 Quick Start
-
-### Prerequisites
-- kubectl installed and configured
-- Azure CLI (for AKS) or AWS CLI (for EKS)
-- Basic understanding of Kubernetes concepts
-
-### Emergency Troubleshooting Checklist
-1. **Cluster Health**: `./scripts/diagnostics/cluster-health-check.sh`
-2. **Pod Issues**: `./scripts/diagnostics/pod-diagnostics.sh`
-3. **Network Problems**: `./scripts/diagnostics/network-diagnostics.sh`
-4. **Resource Constraints**: `./scripts/diagnostics/resource-analysis.sh`
-5. **Storage Issues**: `./scripts/diagnostics/storage-analysis.sh`
-6. **Deployments Stuck**: `./scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`
-7. **DNS Issues**: `./scripts/fixes/fix-dns-issues.sh`
-
-## 📁 Guide Structure
-
+## Repository Map
 ```
 ├── docs/
-│   ├── architects/          # High-level design and architecture guides
-│   ├── engineers/           # Development and implementation guides
-│   ├── devops/             # CI/CD and deployment guides
-│   ├── sre/                # Site reliability and operations guides
-│   └── copywriters/        # Documentation templates and standards
+│   ├── architects/      # Cluster design, security, DR, sizing, mesh
+│   ├── engineers/       # App debugging, perf, config, images
+│   ├── devops/          # CI/CD, GitOps, rollout strategies, infra
+│   ├── sre/             # Observability, incident response, SLOs
+│   └── copywriters/     # Style, templates, documentation QA
 ├── scripts/
-│   ├── diagnostics/        # Automated diagnostic scripts
-│   ├── fixes/              # Automated fix scripts
-│   └── monitoring/         # Monitoring setup scripts
-├── playbooks/              # Step-by-step troubleshooting playbooks
-├── templates/              # YAML templates and configurations
-└── examples/               # Real-world examples and case studies
+│   ├── diagnostics/     # Health, network, storage, rollout, GitOps
+│   ├── fixes/           # Pods/DNS cleanup, scaling, cert refresh
+│   └── monitoring/      # Prometheus/Grafana/alerts/logs bootstrap
+├── playbooks/           # Severity-focused runbooks (P0/P1)
+├── templates/           # Troubleshooting, runbook, post-mortem, API
+└── k8s/                 # Deployment manifests for the diagnostics API
 ```
 
-## 🎯 Team-Specific Quick Access
+## Role Cheat Sheet
+- **Architects**: Start at `docs/architects/` for tenancy, network, security, DR, sizing, and mesh patterns.
+- **Engineers**: See `docs/engineers/` for pod startup, images, config/secrets, debugging, testing, performance.
+- **DevOps**: Use `docs/devops/` for CI/CD failures, registry issues, GitOps, rollout patterns, infra setup.
+- **SREs**: Check `docs/sre/` for monitoring, alerting, incident process, capacity/perf.
+- **Technical Writers**: Follow `docs/copywriters/` with templates in `templates/`.
 
-- **[Architects](docs/architects/)** - Design patterns, scalability, security architecture
-- **[Engineers](docs/engineers/)** - Application deployment, debugging, development workflows
-- **[DevOps](docs/devops/)** - CI/CD pipelines, infrastructure automation, deployment strategies
-- **[SREs](docs/sre/)** - Monitoring, alerting, incident response, capacity planning
-- **[Technical Writers](docs/copywriters/)** - Documentation standards, templates, style guides
+## Automation Highlights
+- Diagnostics: pods, network/DNS, resources, storage, deployments, Helm, GitOps, pipelines.
+- Remediation: restart failed pods, cleanup evicted, fix DNS, scale workloads, cert refresh.
+- Observability: quick-start Prometheus/Grafana, baseline alerts, starter health dashboard, log aggregation.
+- Programmatic: REST API and CLI for detect/fix flows (see `PROGRAMMATIC-GUIDE.md`).
 
-## 🔧 Automation Features
+## Supported Platforms
+- AKS, EKS, self-managed Kubernetes, and GKE (patterns and scripts are cloud-aware where needed).
 
-- **One-click diagnostics** for common issues (pods, network, deployments, storage, GitOps, Helm)
-- **Automated remediation** scripts for pods, DNS, evicted cleanup, scaling, and cert refresh
-- **Health monitoring** dashboards and alerts (Prometheus/Grafana/alerts)
-- **Performance optimization** recommendations and resource profiling
-- **Security scanning** and compliance checks via `security-audit.sh`
-- **Programmatic API/CLI** for detect/fix workflows
-
-## 📊 Supported Platforms
-
-- ✅ Azure Kubernetes Service (AKS)
-- ✅ Amazon Elastic Kubernetes Service (EKS)
-- ✅ Self-managed Kubernetes
-- ✅ Google Kubernetes Engine (GKE)
-
-## 🆘 Emergency Contacts & Escalation
-
-See [Emergency Response Guide](docs/emergency-response.md) for critical issue escalation procedures.
+## Incident Escalation
+Use the [Emergency Response Guide](docs/emergency-response.md). It defines roles, cadence, and cloud-provider escalation paths.
 
 ---
-
-**Last Updated**: $(date)
-**Version**: 1.0.0
-**Maintainers**: FAAN Board (Architects, Engineers, DevOps, SREs, Technical Writers)
+Version: 1.0.0  
+Maintainers: FAAN Board (Architects, Engineers, DevOps, SREs, Technical Writers)  
+Last Updated: $(date)
