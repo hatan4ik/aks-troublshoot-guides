@@ -12,6 +12,8 @@ class K8sClient:
         self.v1 = client.CoreV1Api()
         self.apps_v1 = client.AppsV1Api()
         self.metrics = client.CustomObjectsApi()
+        # Fixer is injected later to break cycles
+        self.fixer = None
 
     def get_cluster_health(self) -> Dict:
         """Get comprehensive cluster health status"""

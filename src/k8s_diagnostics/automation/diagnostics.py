@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from datetime import datetime
 from kubernetes.client import V1Pod
 
@@ -235,6 +235,100 @@ class DiagnosticsEngine:
         
         return {"issues": issues, "timestamp": datetime.now().isoformat()}
 
+    async def predict_risk(self) -> Dict:
+        """Heuristic risk prediction based on current issues"""
+        issues = await self.detect_common_issues()
+        score = 0
+        for issue in issues.get("issues", []):
+            if issue["severity"] == "high":
+                score += 3
+            elif issue["severity"] == "medium":
+                score += 2
+            else:
+                score += 1
+        risk = "low"
+        if score >= 6:
+            risk = "high"
+        elif score >= 3:
+            risk = "medium"
+        return {
+            "risk_level": risk,
+            "score": score,
+            "issues_considered": issues.get("issues", []),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    async def autonomous_heal(self) -> Dict:
+        """Attempt safe remediations for detected issues"""
+        actions = []
+        issues = await self.detect_common_issues()
+        for issue in issues.get("issues", []):
+            if issue["type"] == "failed_pods":
+                result = await self.k8s.fixer.restart_failed_pods()
+                actions.append({"issue": "failed_pods", "result": result})
+            if issue["type"] == "dns_unhealthy":
+                result = await self.k8s.fixer.fix_dns_issues()
+                actions.append({"issue": "dns_unhealthy", "result": result})
+        return {
+            "actions": actions,
+            "issues": issues.get("issues", []),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def optimize_costs(self) -> Dict:
+        """Provide simple cost-optimization recommendations"""
+        recs = []
+        pods = self.k8s.v1.list_pod_for_all_namespaces().items
+        nodes = self.k8s.v1.list_node().items
+        services = self.k8s.v1.list_service_for_all_namespaces().items
+        # Pod density
+        pod_density = len(pods) / max(len(nodes), 1)
+        if pod_density < 5:
+            recs.append("Pod density is low (<5 pods/node). Consider consolidating or using smaller nodes.")
+        # Load balancers
+        lb_services = [s for s in services if s.spec.type == "LoadBalancer"]
+        if len(lb_services) > 10:
+            recs.append(f"{len(lb_services)} LoadBalancer services detected. Review necessity to reduce costs.")
+        # Unpinned images already via image scan recommendation
+        return {
+            "summary": "Cost optimization hints (heuristic)",
+            "pod_density": pod_density,
+            "load_balancers": len(lb_services),
+            "recommendations": recs,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def provider_diagnostics(self) -> Dict:
+        """Provider-aware diagnostics for AKS/EKS/GKE where detectable"""
+        nodes = self.k8s.v1.list_node().items
+        provider = "unknown"
+        if nodes:
+            pid = nodes[0].spec.provider_id or ""
+            if "azure" in pid:
+                provider = "aks"
+            elif "aws" in pid:
+                provider = "eks"
+            elif "gce" in pid or "google" in pid:
+                provider = "gke"
+        cni = self._detect_cni()
+        lb_pending = self._check_pending_load_balancers()
+        return {
+            "provider": provider,
+            "cni": cni,
+            "load_balancers": lb_pending,
+            "notes": "Heuristic provider detection based on node providerID and common CNI pods."
+        }
+
+    def _detect_cni(self) -> Dict:
+        """Identify common CNI deployments"""
+        cni_pods = self.k8s.v1.list_pod_for_all_namespaces(
+            label_selector="k8s-app=aws-node,app=azure-cni,k8s-app=calico-node,app=cilium"
+        )
+        return {
+            "count": len(cni_pods.items),
+            "running": sum(1 for p in cni_pods.items if p.status.phase == "Running")
+        }
+
     def _find_image_pull_errors(self, pods: List[V1Pod]) -> List[str]:
         """Detect pods with image pull failures"""
         pull_errors = []
@@ -323,4 +417,3 @@ class DiagnosticsEngine:
             "status": "not_implemented",
             "message": "Intelligent alerting is not yet implemented. This will use machine learning to reduce alert noise and provide more context."
         }
-

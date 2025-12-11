@@ -32,6 +32,15 @@ curl -X POST http://localhost:8000/fix/restart-failed-pods
 curl -X POST http://localhost:8000/fix/cleanup-evicted
 curl -X POST http://localhost:8000/fix/dns
 curl -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
+
+# Heuristics and provider-aware checks
+curl http://localhost:8000/ai/predict
+curl -X POST http://localhost:8000/ai/heal
+curl http://localhost:8000/ai/optimize
+curl http://localhost:8000/diagnose/provider
+
+# Chaos (dry-run by default)
+curl -X POST "http://localhost:8000/chaos/inject?namespace=default&label_selector=app=my-app&dry_run=true"
 ```
 `/issues/detect` reports nodes not ready, failed/pending pods, image pull errors, DNS/CoreDNS health, PVC binds, and pending load balancers.
 
@@ -52,6 +61,10 @@ await fixer.restart_failed_pods()
 await fixer.fix_dns_issues()
 await fixer.cleanup_evicted_pods()
 await fixer.scale_resources("default", "my-deploy", 3)
+prediction = await diagnostics.predict_risk()
+healing = await diagnostics.autonomous_heal()
+optimize = diagnostics.optimize_costs()
+provider = diagnostics.provider_diagnostics()
 ```
 
 ## CLI (Shipped Commands)
@@ -66,6 +79,15 @@ python k8s-diagnostics-cli.py fix                       # restart failed pods
 python k8s-diagnostics-cli.py cleanup                   # evicted pods
 python k8s-diagnostics-cli.py dnsfix                    # CoreDNS
 python k8s-diagnostics-cli.py scale default my-deploy 3 # scale deployment
+
+# Heuristics / automation
+python k8s-diagnostics-cli.py predict                   # risk prediction
+python k8s-diagnostics-cli.py heal                      # autonomous healing
+python k8s-diagnostics-cli.py optimize                  # cost hints
+python k8s-diagnostics-cli.py provider                  # provider-aware diagnostics
+
+# Chaos (dry-run default; set last arg false to execute)
+python k8s-diagnostics-cli.py chaos default app=my-app true
 ```
 
 ## Integration Recipes

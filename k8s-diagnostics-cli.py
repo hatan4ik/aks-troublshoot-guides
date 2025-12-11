@@ -10,117 +10,79 @@ import sys
 from src.k8s_diagnostics.core.client import K8sClient
 from src.k8s_diagnostics.automation.diagnostics import DiagnosticsEngine
 from src.k8s_diagnostics.automation.fixes import AutoFixer
+from src.k8s_diagnostics.automation.chaos import ChaosEngine
+
 
 class DiagnosticsCLI:
     def __init__(self):
         self.k8s = K8sClient()
         self.diagnostics = DiagnosticsEngine(self.k8s)
         self.fixer = AutoFixer(self.k8s)
+        self.chaos = ChaosEngine(self.k8s)
+        self.k8s.fixer = self.fixer
 
     def health(self):
-        """Get cluster health"""
         result = self.k8s.get_cluster_health()
         print(json.dumps(result, indent=2))
 
     async def diagnose_pod(self, namespace, pod_name):
-        """Diagnose specific pod"""
         result = await self.diagnostics.diagnose_pod(namespace, pod_name)
         print(json.dumps(result, indent=2))
 
     async def network_check(self):
-        """Run network diagnostics"""
         result = await self.diagnostics.check_network()
         print(json.dumps(result, indent=2))
 
     async def detect_issues(self):
-        """Auto-detect issues"""
         result = await self.diagnostics.detect_common_issues()
         print(json.dumps(result, indent=2))
 
     async def fix_failed_pods(self):
-        """Auto-fix failed pods"""
         result = await self.fixer.restart_failed_pods()
         print(json.dumps(result, indent=2))
 
     async def cleanup_evicted(self):
-        """Cleanup evicted pods"""
         result = await self.fixer.cleanup_evicted_pods()
         print(json.dumps(result, indent=2))
 
     async def fix_dns(self):
-        """Restart unhealthy CoreDNS pods"""
         result = await self.fixer.fix_dns_issues()
         print(json.dumps(result, indent=2))
 
     async def scale(self, namespace, deployment, replicas):
-        """Scale a deployment"""
         result = await self.fixer.scale_resources(namespace, deployment, int(replicas))
         print(json.dumps(result, indent=2))
 
-    async def update_certs(self):
-        """Update certificates"""
-        result = await self.fixer.update_certificates()
+    async def predict(self):
+        result = await self.diagnostics.predict_risk()
         print(json.dumps(result, indent=2))
 
-    async def setup_prometheus(self):
-        """Setup prometheus"""
-        result = await self.diagnostics.setup_prometheus()
+    async def heal(self):
+        result = await self.diagnostics.autonomous_heal()
         print(json.dumps(result, indent=2))
 
-    async def configure_alerts(self):
-        """Configure alerts"""
-        result = await self.diagnostics.configure_alerts()
+    async def optimize(self):
+        result = self.diagnostics.optimize_costs()
         print(json.dumps(result, indent=2))
 
-    async def create_dashboard(self):
-        """Create grafana dashboard"""
-        result = await self.diagnostics.create_grafana_dashboard()
+    async def chaos_inject(self, namespace, selector, dry_run=True):
+        result = await self.chaos.inject_pod_failure(namespace, selector, dry_run)
         print(json.dumps(result, indent=2))
 
-    async def setup_logging(self):
-        """Setup log aggregation"""
-        result = await self.diagnostics.setup_log_aggregation()
+    async def provider_diag(self):
+        result = self.diagnostics.provider_diagnostics()
         print(json.dumps(result, indent=2))
 
-    async def analyze_performance(self):
-        """Analyze performance"""
-        result = await self.diagnostics.analyze_performance()
-        print(json.dumps(result, indent=2))
-
-    async def scan_security(self):
-        """Scan security"""
-        result = await self.diagnostics.scan_security()
-        print(json.dumps(result, indent=2))
-
-    async def auto_remediate(self):
-        """Auto-remediate issues"""
-        result = await self.fixer.auto_remediate(self.diagnostics)
-        print(json.dumps(result, indent=2))
-
-    async def predict_issues(self):
-        """Predict issues"""
-        result = await self.diagnostics.predict_issues()
-        print(json.dumps(result, indent=2))
-
-    async def ml_rca(self):
-        """ML-based root cause analysis"""
-        result = await self.diagnostics.ml_root_cause_analysis()
-        print(json.dumps(result, indent=2))
-
-    async def smart_alerts(self):
-        """Intelligent alerting"""
-        result = await self.diagnostics.intelligent_alerting()
-        print(json.dumps(result, indent=2))
 
 def main():
     cli = DiagnosticsCLI()
-    
+
     if len(sys.argv) < 2:
-        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale|updatecerts|prom-setup|config-alerts|create-dash|log-setup|perf-analysis|sec-scan|remediate|predict|rca|alerts]")
+        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale|predict|heal|optimize|chaos|provider]")
         sys.exit(1)
-    
+
     command = sys.argv[1]
-    
+
     if command == "health":
         cli.health()
     elif command == "diagnose" and len(sys.argv) >= 4:
@@ -137,31 +99,23 @@ def main():
         asyncio.run(cli.fix_dns())
     elif command == "scale" and len(sys.argv) >= 5:
         asyncio.run(cli.scale(sys.argv[2], sys.argv[3], sys.argv[4]))
-    elif command == "updatecerts":
-        asyncio.run(cli.update_certs())
-    elif command == "prom-setup":
-        asyncio.run(cli.setup_prometheus())
-    elif command == "config-alerts":
-        asyncio.run(cli.configure_alerts())
-    elif command == "create-dash":
-        asyncio.run(cli.create_dashboard())
-    elif command == "log-setup":
-        asyncio.run(cli.setup_logging())
-    elif command == "perf-analysis":
-        asyncio.run(cli.analyze_performance())
-    elif command == "sec-scan":
-        asyncio.run(cli.scan_security())
-    elif command == "remediate":
-        asyncio.run(cli.auto_remediate())
     elif command == "predict":
-        asyncio.run(cli.predict_issues())
-    elif command == "rca":
-        asyncio.run(cli.ml_rca())
-    elif command == "alerts":
-        asyncio.run(cli.smart_alerts())
+        asyncio.run(cli.predict())
+    elif command == "heal":
+        asyncio.run(cli.heal())
+    elif command == "optimize":
+        asyncio.run(cli.optimize())
+    elif command == "chaos" and len(sys.argv) >= 4:
+        dry = True
+        if len(sys.argv) >= 5 and sys.argv[4].lower() == "false":
+            dry = False
+        asyncio.run(cli.chaos_inject(sys.argv[2], sys.argv[3], dry))
+    elif command == "provider":
+        asyncio.run(cli.provider_diag())
     else:
         print("Invalid command or missing arguments")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

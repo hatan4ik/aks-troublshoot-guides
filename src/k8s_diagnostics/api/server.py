@@ -1,21 +1,15 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from ..core.client import K8sClient
 from ..automation.diagnostics import DiagnosticsEngine
 from ..automation.fixes import AutoFixer
-from ..ai.predictor import AIPredictor, ChaosEngineer, AutoHealer
-from ..ai.optimizer import ResourceOptimizer, AIOpsEngine
-import asyncio
+from ..automation.chaos import ChaosEngine
 
-app = FastAPI(title="K8s Diagnostics API", version="1.0.0")
+app = FastAPI(title="K8s Diagnostics API", version="1.1.0")
 k8s = K8sClient()
 diagnostics = DiagnosticsEngine(k8s)
 fixer = AutoFixer(k8s)
-ai_predictor = AIPredictor()
-chaos_engineer = ChaosEngineer(k8s)
-auto_healer = AutoHealer(k8s, ai_predictor)
-optimizer = ResourceOptimizer(k8s)
-aiops = AIOpsEngine(k8s)
+chaos = ChaosEngine(k8s)
+k8s.fixer = fixer  # provide fixer access for autonomous heal
 
 @app.get("/health")
 async def cluster_health():
@@ -63,30 +57,29 @@ async def detect_issues():
     return await diagnostics.detect_common_issues()
 
 @app.get("/ai/predict")
-async def predict_failures():
-    """AI-powered failure prediction"""
-    metrics = {"cpu_usage": 0.7, "memory_usage": 0.8, "pod_restart_count": 15, "error_rate": 0.02}
-    return await ai_predictor.predict_failures(metrics)
+async def predict_risk():
+    """Heuristic risk prediction from current issues"""
+    return await diagnostics.predict_risk()
 
 @app.post("/ai/heal")
 async def autonomous_healing():
-    """Trigger autonomous healing"""
-    return await auto_healer.autonomous_healing()
-
-@app.post("/chaos/inject-failure")
-async def inject_chaos(namespace: str, label_selector: str):
-    """Inject controlled failures for chaos engineering"""
-    return await chaos_engineer.inject_pod_failure(namespace, label_selector)
+    """Attempt autonomous healing for common issues"""
+    return await diagnostics.autonomous_heal()
 
 @app.get("/ai/optimize")
 async def optimize_cluster():
-    """AI-driven cluster optimization"""
-    return await optimizer.optimize_cluster()
+    """Cost optimization recommendations (heuristic)"""
+    return diagnostics.optimize_costs()
 
-@app.get("/ai/anomalies")
-async def detect_anomalies():
-    """Detect anomalies using AIOps"""
-    return await aiops.detect_anomalies()
+@app.get("/diagnose/provider")
+async def provider_diagnostics():
+    """Provider-aware diagnostics"""
+    return diagnostics.provider_diagnostics()
+
+@app.post("/chaos/inject")
+async def inject_chaos(namespace: str, label_selector: str, dry_run: bool = True):
+    """Inject pod failure (dry-run by default)"""
+    return await chaos.inject_pod_failure(namespace, label_selector, dry_run)
 
 if __name__ == "__main__":
     import uvicorn
