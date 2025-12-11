@@ -38,18 +38,18 @@
 | Issue | Symptoms | Business Impact | Automation | Team Focus |
 |-------|----------|-----------------|------------|------------|
 | **Policy Violations** | Blocked operations | Compliance Failures | [`security-audit.sh`](./scripts/diagnostics/security-audit.sh) | Architects, SRE |
-| **Secrets Exposure** | Credentials in logs | Data Breach Risk | `security-scan.sh` | All Teams |
+| **Secrets Exposure** | Credentials in logs | Data Breach Risk | [`security-scan.sh`](./scripts/diagnostics/security-scan.sh) | All Teams |
 | **Privilege Escalation**| Unauthorized access | Security Breach | Manual investigation| Architects, SRE |
-| **Network Security** | Unauthorized traffic | Security Breach | `network-security-scan.sh` | Architects, SRE |
-| **Image Vulnerabilities**| CVEs in containers | Exploit Risk | `image-security-scan.sh` | DevOps, Engineers |
+| **Network Security** | Unauthorized traffic | Security Breach | [`network-security-scan.sh`](./scripts/diagnostics/network-security-scan.sh) | Architects, SRE |
+| **Image Vulnerabilities**| CVEs in containers | Exploit Risk | [`image-security-scan.sh`](./scripts/diagnostics/image-security-scan.sh) | DevOps, Engineers |
 
 ### 🔄 Deployment Issues (P2/P3)
 
 | Issue | Symptoms | Business Impact | Automation | Team Focus |
 |-------|----------|-----------------|------------|------------|
 | **Update Stuck** | Deployment not progressing| Release Delays | [`deployment-diagnostics.sh`](./scripts/diagnostics/deployment-diagnostics.sh) | DevOps, Engineers |
-| **Config Drift** | Inconsistent configurations| Unpredictable Behavior| `config-validation.sh` | DevOps, SRE |
-| **Rollback Failures** | Cannot revert changes | Extended Downtime | `rollback-diagnostics.sh` | DevOps, SRE |
+| **Config Drift** | Inconsistent configurations| Unpredictable Behavior| [`config-validation.sh`](./scripts/diagnostics/config-validation.sh) | DevOps, SRE |
+| **Rollback Failures** | Cannot revert changes | Extended Downtime | [`rollback-diagnostics.sh`](./scripts/diagnostics/rollback-diagnostics.sh) | DevOps, SRE |
 | **Helm Issues** | Chart deployment failures| Deployment Failures | [`helm-diagnostics.sh`](./scripts/diagnostics/helm-diagnostics.sh) | DevOps, Engineers |
 | **GitOps Sync Issues** | Git-cluster drift | Inconsistent State | [`gitops-diagnostics.sh`](./scripts/diagnostics/gitops-diagnostics.sh) | DevOps, SRE |
 
@@ -60,8 +60,8 @@
 | **Unused Resources** | Idle services, disks | Wasted Spend | [`resource-analysis.sh`](./scripts/diagnostics/resource-analysis.sh) | Architects, SRE |
 | **Overprovisioning** | Low CPU/Memory utilization| Inflated Costs | [`resource-analysis.sh`](./scripts/diagnostics/resource-analysis.sh) | Architects, SRE |
 | **Suboptimal Bidding**| High spot instance costs | Increased Costs | Manual review | Architects, SRE |
-| **No Autoscaling** | Fixed replica counts | Missed Savings | `hpa-check.sh` | Architects, DevOps |
-| **Logging/Monitoring Costs**| Excessive data ingestion| High operational costs| `monitoring-audit.sh` | SRE, DevOps |
+| **No Autoscaling** | Fixed replica counts | Missed Savings | [`hpa-check.sh`](./scripts/diagnostics/hpa-check.sh) | Architects, DevOps |
+| **Logging/Monitoring Costs**| Excessive data ingestion| High operational costs| [`monitoring-audit.sh`](./scripts/diagnostics/monitoring-audit.sh) | SRE, DevOps |
 
 ## 🤖 Automation Coverage
 
@@ -77,8 +77,8 @@
 - ✅ [`gitops-diagnostics.sh`](./scripts/diagnostics/gitops-diagnostics.sh) - Argo/Flux sync health
 - ✅ [`helm-diagnostics.sh`](./scripts/diagnostics/helm-diagnostics.sh) - Helm release checks
 - ✅ [`pipeline-debug.sh`](./scripts/diagnostics/pipeline-debug.sh) - CI/CD troubleshooting helper
-- 📋 `hpa-check.sh` - HPA configuration and effectiveness
-- 📋 `monitoring-audit.sh` - Audit logging/monitoring costs
+- 📋 [`hpa-check.sh`](./scripts/diagnostics/hpa-check.sh) - HPA configuration and effectiveness
+- 📋 [`monitoring-audit.sh`](./scripts/diagnostics/monitoring-audit.sh) - Audit logging/monitoring costs
 
 ### Fix Scripts (Planned)
 - ✅ [`auto-restart-failed-pods.sh`](./scripts/fixes/auto-restart-failed-pods.sh) - Restart crashlooping pods
