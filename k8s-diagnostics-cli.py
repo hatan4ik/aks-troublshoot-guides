@@ -92,11 +92,31 @@ class DiagnosticsCLI:
         result = await self.diagnostics.scan_security()
         print(json.dumps(result, indent=2))
 
+    async def auto_remediate(self):
+        """Auto-remediate issues"""
+        result = await self.fixer.auto_remediate(self.diagnostics)
+        print(json.dumps(result, indent=2))
+
+    async def predict_issues(self):
+        """Predict issues"""
+        result = await self.diagnostics.predict_issues()
+        print(json.dumps(result, indent=2))
+
+    async def ml_rca(self):
+        """ML-based root cause analysis"""
+        result = await self.diagnostics.ml_root_cause_analysis()
+        print(json.dumps(result, indent=2))
+
+    async def smart_alerts(self):
+        """Intelligent alerting"""
+        result = await self.diagnostics.intelligent_alerting()
+        print(json.dumps(result, indent=2))
+
 def main():
     cli = DiagnosticsCLI()
     
     if len(sys.argv) < 2:
-        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale|updatecerts|prom-setup|config-alerts|create-dash|log-setup|perf-analysis|sec-scan]")
+        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale|updatecerts|prom-setup|config-alerts|create-dash|log-setup|perf-analysis|sec-scan|remediate|predict|rca|alerts]")
         sys.exit(1)
     
     command = sys.argv[1]
@@ -131,6 +151,14 @@ def main():
         asyncio.run(cli.analyze_performance())
     elif command == "sec-scan":
         asyncio.run(cli.scan_security())
+    elif command == "remediate":
+        asyncio.run(cli.auto_remediate())
+    elif command == "predict":
+        asyncio.run(cli.predict_issues())
+    elif command == "rca":
+        asyncio.run(cli.ml_rca())
+    elif command == "alerts":
+        asyncio.run(cli.smart_alerts())
     else:
         print("Invalid command or missing arguments")
         sys.exit(1)

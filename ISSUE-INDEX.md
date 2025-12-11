@@ -77,8 +77,8 @@
 - ✅ [`gitops-diagnostics.sh`](./scripts/diagnostics/gitops-diagnostics.sh) - Argo/Flux sync health
 - ✅ [`helm-diagnostics.sh`](./scripts/diagnostics/helm-diagnostics.sh) - Helm release checks
 - ✅ [`pipeline-debug.sh`](./scripts/diagnostics/pipeline-debug.sh) - CI/CD troubleshooting helper
-- 📋 [`hpa-check.sh`](./scripts/diagnostics/hpa-check.sh) - HPA configuration and effectiveness
-- 📋 [`monitoring-audit.sh`](./scripts/diagnostics/monitoring-audit.sh) - Audit logging/monitoring costs
+- ✅ [`hpa-check.sh`](./scripts/diagnostics/hpa-check.sh) - HPA configuration and effectiveness
+- ✅ [`monitoring-audit.sh`](./scripts/diagnostics/monitoring-audit.sh) - Audit logging/monitoring costs
 
 ### Fix Scripts (Planned)
 - ✅ [`auto-restart-failed-pods.sh`](./scripts/fixes/auto-restart-failed-pods.sh) - Restart crashlooping pods
@@ -145,10 +145,10 @@
 - ✅ Security scanning automation (via `k8s-diagnostics-cli.py`)
 
 ### Phase 3: Intelligence (Future)
-- 🔄 Predictive issue detection
-- 🔄 Auto-remediation workflows
-- 🔄 ML-based root cause analysis
-- 🔄 Intelligent alerting
+- ✅ Predictive issue detection (via `k8s-diagnostics-cli.py predict`)
+- ✅ Auto-remediation workflows (via `k8s-diagnostics-cli.py remediate`)
+- ✅ ML-based root cause analysis (via `k8s-diagnostics-cli.py rca`)
+- ✅ Intelligent alerting (via `k8s-diagnostics-cli.py alerts`)
 
 ### Phase 4: Excellence (Vision)
 - 🔄 Self-healing infrastructure

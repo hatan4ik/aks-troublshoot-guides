@@ -61,6 +61,12 @@ python k8s-diagnostics-cli.py fix                       # restart failed pods
 python k8s-diagnostics-cli.py cleanup                   # evicted pods
 python k8s-diagnostics-cli.py dnsfix                    # CoreDNS
 python k8s-diagnostics-cli.py scale default my-deploy 3 # scale deployment
+
+# Intelligence
+python k8s-diagnostics-cli.py remediate                 # auto-remediate
+python k8s-diagnostics-cli.py predict                   # predict issues
+python k8s-diagnostics-cli.py rca                       # ML-based root cause analysis
+python k8s-diagnostics-cli.py alerts                    # intelligent alerting
 ```
 
 ## Integration Recipes
