@@ -9,8 +9,12 @@ class ChaosEngine:
         self.k8s = k8s_client
 
     async def inject_pod_failure(self, namespace: str, label_selector: str, dry_run: bool = True) -> Dict:
+        """Delete one pod matching selector; defaults to dry-run. Protects system namespaces."""
         if namespace in ["kube-system", "kube-public", "kube-node-lease"]:
             return {"error": "Refusing to target system namespace"}
+
+        if not label_selector:
+            return {"error": "label_selector required"}
 
         pods = self.k8s.v1.list_namespaced_pod(namespace, label_selector=label_selector)
         if not pods.items:

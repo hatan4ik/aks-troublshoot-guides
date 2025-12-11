@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from datetime import datetime
 from kubernetes.client import V1Pod
 
@@ -260,6 +260,9 @@ class DiagnosticsEngine:
 
     async def autonomous_heal(self) -> Dict:
         """Attempt safe remediations for detected issues"""
+        if not getattr(self.k8s, "fixer", None):
+            return {"error": "Auto-heal unavailable: fixer not configured"}
+
         actions = []
         issues = await self.detect_common_issues()
         for issue in issues.get("issues", []):
@@ -321,12 +324,25 @@ class DiagnosticsEngine:
 
     def _detect_cni(self) -> Dict:
         """Identify common CNI deployments"""
-        cni_pods = self.k8s.v1.list_pod_for_all_namespaces(
-            label_selector="k8s-app=aws-node,app=azure-cni,k8s-app=calico-node,app=cilium"
-        )
+        pods = self.k8s.v1.list_pod_for_all_namespaces().items
+        known = {
+            "aws-node": "aws-cni",
+            "azure-cni": "azure-cni",
+            "calico-node": "calico",
+            "cilium": "cilium",
+            "kube-flannel-ds": "flannel",
+            "weave-net": "weave"
+        }
+        detected = []
+        for pod in pods:
+            name = pod.metadata.name
+            match = next((v for k, v in known.items() if k in name), None)
+            if match:
+                detected.append((match, pod.status.phase))
         return {
-            "count": len(cni_pods.items),
-            "running": sum(1 for p in cni_pods.items if p.status.phase == "Running")
+            "detected": list({d[0] for d in detected}),
+            "running": sum(1 for d in detected if d[1] == "Running"),
+            "total": len(detected)
         }
 
     def _find_image_pull_errors(self, pods: List[V1Pod]) -> List[str]:
