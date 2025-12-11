@@ -3,12 +3,19 @@ from fastapi.responses import JSONResponse
 from ..core.client import K8sClient
 from ..automation.diagnostics import DiagnosticsEngine
 from ..automation.fixes import AutoFixer
+from ..ai.predictor import AIPredictor, ChaosEngineer, AutoHealer
+from ..ai.optimizer import ResourceOptimizer, AIOpsEngine
 import asyncio
 
 app = FastAPI(title="K8s Diagnostics API", version="1.0.0")
 k8s = K8sClient()
 diagnostics = DiagnosticsEngine(k8s)
 fixer = AutoFixer(k8s)
+ai_predictor = AIPredictor()
+chaos_engineer = ChaosEngineer(k8s)
+auto_healer = AutoHealer(k8s, ai_predictor)
+optimizer = ResourceOptimizer(k8s)
+aiops = AIOpsEngine(k8s)
 
 @app.get("/health")
 async def cluster_health():
@@ -54,6 +61,32 @@ async def resource_metrics():
 async def detect_issues():
     """Auto-detect common issues"""
     return await diagnostics.detect_common_issues()
+
+@app.get("/ai/predict")
+async def predict_failures():
+    """AI-powered failure prediction"""
+    metrics = {"cpu_usage": 0.7, "memory_usage": 0.8, "pod_restart_count": 15, "error_rate": 0.02}
+    return await ai_predictor.predict_failures(metrics)
+
+@app.post("/ai/heal")
+async def autonomous_healing():
+    """Trigger autonomous healing"""
+    return await auto_healer.autonomous_healing()
+
+@app.post("/chaos/inject-failure")
+async def inject_chaos(namespace: str, label_selector: str):
+    """Inject controlled failures for chaos engineering"""
+    return await chaos_engineer.inject_pod_failure(namespace, label_selector)
+
+@app.get("/ai/optimize")
+async def optimize_cluster():
+    """AI-driven cluster optimization"""
+    return await optimizer.optimize_cluster()
+
+@app.get("/ai/anomalies")
+async def detect_anomalies():
+    """Detect anomalies using AIOps"""
+    return await aiops.detect_anomalies()
 
 if __name__ == "__main__":
     import uvicorn

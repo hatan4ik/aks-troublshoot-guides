@@ -1,0 +1,95 @@
+# AI-Driven Kubernetes Operator for Phase 4 Excellence
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-ai-operator
+  namespace: kube-system
+  labels:
+    app: k8s-ai-operator
+    component: ai-operations
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-ai-operator
+  template:
+    metadata:
+      labels:
+        app: k8s-ai-operator
+    spec:
+      serviceAccountName: k8s-diagnostics
+      containers:
+      - name: ai-operator
+        image: k8s-diagnostics:latest
+        command: ["python", "-m", "src.k8s_diagnostics.ai.operator"]
+        env:
+        - name: AI_ENABLED
+          value: "true"
+        - name: AUTO_HEAL_ENABLED
+          value: "true"
+        - name: CHAOS_ENABLED
+          value: "false"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-optimization
+  namespace: kube-system
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: k8s-diagnostics
+          containers:
+          - name: optimizer
+            image: k8s-diagnostics:latest
+            command: ["python", "-c"]
+            args:
+            - |
+              import asyncio
+              from src.k8s_diagnostics.core.client import K8sClient
+              from src.k8s_diagnostics.ai.optimizer import ResourceOptimizer
+              
+              async def main():
+                  k8s = K8sClient()
+                  optimizer = ResourceOptimizer(k8s)
+                  result = await optimizer.optimize_cluster()
+                  print(f"Optimization completed: {result}")
+              
+              asyncio.run(main())
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-config
+  namespace: kube-system
+data:
+  config.yaml: |
+    ai:
+      prediction_interval: 300  # 5 minutes
+      healing_enabled: true
+      chaos_engineering: false
+      optimization_schedule: "0 */6 * * *"
+    
+    thresholds:
+      cpu_critical: 0.9
+      memory_critical: 0.9
+      failure_probability: 0.8
+      anomaly_confidence: 0.85
+    
+    actions:
+      auto_scale: true
+      auto_restart: true
+      auto_optimize: true
+      notify_teams: true
