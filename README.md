@@ -6,6 +6,12 @@ Zero-to-hero with automation for architects, engineers, DevOps, SREs, and techni
 - **For prevention**: Follow the role guides and automation sections to bake guardrails into CI/CD and operations.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
 
+## 🎓 Interview Preparation (FAANG/MANGA)
+**Targeting a Senior SRE/Platform role?**
+This repository isn't just a toolkit; it's a study guide.
+- 👉 **[Read the FAANG Interview Prep Guide](./docs/INTERVIEW-PREP.md)**
+- **Topics Covered:** Deep troubleshooting (OOM, CrashLoop), System Design (Scaling to 5k nodes), K8s Internals (Packet walks), and Automation coding.
+
 ## Quick Start (Do This First)
 - Install and configure `kubectl`; add Azure CLI (AKS) or AWS CLI (EKS) as needed.
 - Validate connectivity: `kubectl cluster-info`
