@@ -170,7 +170,34 @@ This guide is designed to transform you from a Kubernetes *user* to a Kubernetes
 
 ---
 
-## 💻 Section 6: Coding (Platform Engineering)
+## 🎛 Section 6: Deep Controller Dive (Ingress vs. CNI)
+
+### Scenario 13: Ingress Controller Chaos
+**Question:** "What is the difference between Nginx Ingress, AWS ALB Controller, and Azure AGIC? How do you debug a 504 Gateway Timeout?"
+
+**The Expert Path:**
+1.  **The Architecture:**
+    *   **Nginx:** Runs *inside* the cluster (Data plane is pods). Fast, cheap, flexible (Lua), but you manage the scaling.
+    *   **ALB/AGIC:** Runs *outside* the cluster (Control plane only). Configures cloud LBs (AWS ALB / Azure AppGW). Slower updates, but fully managed and integrates with WAF.
+2.  **Debug 504 (Timeout):**
+    *   **Upstream:** Is the pod too slow? (Check app logs).
+    *   **Keep-Alive:** Does the Ingress keep-alive timeout match the App's keep-alive? (If Ingress drops connection while App is thinking -> 502/504).
+    *   **The Check:** `kubectl logs -n ingress-nginx -l app=ingress-nginx` vs `kubectl logs <pod>`. Did the request reach the pod?
+
+### Scenario 14: CNI Troubleshooting (Overlay vs. Underlay)
+**Question:** "Pods on Node A cannot talk to Pods on Node B. The nodes are healthy. What is wrong with the CNI?"
+
+**The Expert Path:**
+1.  **Overlay (VxLAN/Geneve - e.g., Flannel, Calico VxLAN):** Encapsulates packets.
+    *   **Check:** Is UDP port 4789 (VxLAN) blocked between nodes? (Firewall/Security Group).
+    *   **Check:** MTU. Inner packet + Header > Host MTU? Packet drops!
+2.  **Underlay (Direct Routing - e.g., AWS VPC CNI, Azure CNI):** No encapsulation.
+    *   **Check:** Routing Table. Does Node A know the route to Node B's Pod CIDR?
+    *   **Check:** IP Exhaustion. Did the node run out of ENIs or IPs? (`kubectl describe node`).
+
+---
+
+## 💻 Section 7: Coding (Platform Engineering)
 
 **Question:** "Write a Python script using the Kubernetes library to delete all deployments in 'dev-' namespaces that haven't been updated in 30 days."
 
