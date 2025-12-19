@@ -136,7 +136,41 @@ This guide is designed to transform you from a Kubernetes *user* to a Kubernetes
 
 ---
 
-## 💻 Section 5: Coding (Platform Engineering)
+## 🔒 Section 5: Deep Security (The "Shield")
+
+### Scenario 10: The "Impossible" Permission Denied
+**Question:** "A developer's pod is failing to read a Secret. You checked RBAC (`kubectl auth can-i`), and the ServiceAccount has `get/list` on Secrets. What is missing?"
+
+**The Expert Path:**
+1.  **The Decoy:** It's rarely just RBAC.
+2.  **The Hidden Layers:**
+    *   **Filesystem Permissions:** Does the container user (UID 1000) have read access to the mount path?
+    *   **SELinux/AppArmor:** Is a host profile blocking the read? (Check `dmesg` or audit logs on the node).
+    *   **KMS Decryption:** If using Envelope Encryption (KMS), does the *Node's* IAM role have permission to `Decrypt` the key in AWS KMS / Azure Key Vault? If not, the Kubelet cannot mount the secret.
+
+### Scenario 11: Container Breakout (Privileged vs. Capabilities)
+**Question:** "A pentester claims they escaped a container. The pod was NOT 'privileged', but they still got root on the host. How?"
+
+**The Expert Path:**
+1.  **Capabilities:** `privileged: true` gives *all* capabilities. But specific capabilities like `CAP_SYS_ADMIN` or `CAP_DAC_READ_SEARCH` are essentially root.
+2.  **Host Mounts:** Did the pod mount `/var/run/docker.sock` or `/`?
+    *   *Attack:* Mount host filesystem -> `chroot /host` -> You own the node.
+3.  **Kernel Vulnerabilities:** Dirty Pipe / Dirty COW. If the kernel is old, isolation doesn't matter.
+
+### Scenario 12: Supply Chain Poisoning
+**Question:** "How do we prevent a compromised developer laptop from pushing a malicious image that creates a back door?"
+
+**The Expert Path:**
+1.  **Admission Controllers:** Use Kyverno or OPA Gatekeeper.
+2.  **The Policy:** "Deny any image that is not signed by our CI/CD key."
+    *   *Tooling:* Sigstore (Cosign).
+3.  **The Flow:**
+    *   Developer commits code -> CI builds image -> CI signs image with private key -> CI pushes to Registry.
+    *   K8s Admission Controller checks signature against public key -> Allows/Denies pod.
+
+---
+
+## 💻 Section 6: Coding (Platform Engineering)
 
 **Question:** "Write a Python script using the Kubernetes library to delete all deployments in 'dev-' namespaces that haven't been updated in 30 days."
 
