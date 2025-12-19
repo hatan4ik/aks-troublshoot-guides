@@ -99,7 +99,44 @@ This guide is designed to transform you from a Kubernetes *user* to a Kubernetes
 
 ---
 
-## 💻 Section 4: Coding (Platform Engineering)
+## 🌐 Section 4: Deep Networking (The "Plumbing")
+
+### Scenario 7: CNI Selection Wars
+**Question:** "We are building a high-frequency trading platform on EKS. Which CNI do you choose and why?"
+
+**The Expert Path:**
+1.  **The Default:** AWS VPC CNI.
+    *   *Pros:* Pods get real VPC IPs (fastest performance, no overlay overhead).
+    *   *Cons:* IP exhaustion (running out of IPs in the subnet).
+2.  **The Challenger:** Cilium (eBPF).
+    *   *Why?* You need observability (Hubble) to debug microsecond latency, which iptables cannot provide. You also need strict Network Policies which AWS VPC CNI handles differently.
+3.  **The Verdict:** Use **AWS VPC CNI in "Prefix Delegation" mode** (to solve IP exhaustion) + **Cilium** in "Chaining Mode" (for Network Policies & Observability).
+
+### Scenario 8: DNS Latency Spikes
+**Question:** "Our app has random 5-second latency spikes when connecting to the database. How do you debug this?"
+
+**The Expert Path:**
+1.  **The Symptom:** 5 seconds is the default DNS timeout in Linux (`glibc`). This screams "DNS Packet Drop".
+2.  **The Cause:** `conntrack` races.
+    *   When a pod makes a DNS request, it hits the Node's conntrack table to DNAT to the CoreDNS pod.
+    *   In high-traffic clusters, UDP packets (DNS) often get dropped due to race conditions in the kernel's conntrack code.
+3.  **The Fix:**
+    *   **NodeLocal DNSCache:** Run a DNS cache daemonset on every node. Pods talk to the local agent (TCP/UDP) bypassing the conntrack mess for the initial hop.
+    *   *Force TCP:* Configure `resolv.conf` to use `use-vc` (force TCP) to avoid UDP drops (but adds overhead).
+
+### Scenario 9: Ingress vs. Gateway API
+**Question:** "Why should we migrate from Ingress Nginx to the Gateway API?"
+
+**The Expert Path:**
+1.  **Role Separation:** Ingress is a single resource that mixes concerns (TLS, Routing, Middleware). Gateway API splits this:
+    *   `GatewayClass` (Infra Provider)
+    *   `Gateway` (Platform Engineer - defines ports/listeners)
+    *   `HTTPRoute` (Developer - defines paths/headers).
+2.  **Portability:** Ingress relies heavily on vendor-specific annotations (`nginx.ingress.kubernetes.io/...`). Gateway API standardizes these features (Header matching, Weight-based splitting for canary).
+
+---
+
+## 💻 Section 5: Coding (Platform Engineering)
 
 **Question:** "Write a Python script using the Kubernetes library to delete all deployments in 'dev-' namespaces that haven't been updated in 30 days."
 
