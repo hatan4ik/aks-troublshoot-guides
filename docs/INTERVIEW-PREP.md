@@ -248,3 +248,17 @@ This guide is designed to transform you from a Kubernetes *user* to a Kubernetes
 *   Dry-run mode (Safety first!).
 
 *(See `src/k8s_diagnostics/automation/` for implementation patterns)*
+
+---
+
+## 📚 Section 10: Advanced Specializations
+
+For deep-dives into specific architectural components, refer to the following specialized guides:
+
+### 🛡️ Security Control Frameworks (SCF)
+*   **Guide:** [Security Control Framework & Troubleshooting](../docs/security-control-framework.md)
+*   **Focus:** NIST/CIS Benchmarks, Troubleshooting OPA/Kyverno, Identity Debugging (IRSA/OIDC), and Runtime Security (Falco).
+
+### 🕸️ Network Controllers & CNI
+*   **Guide:** [Network Controllers & CNI Troubleshooting](../docs/network-controllers-troubleshooting.md)
+*   **Focus:** Deep dive into `aws-node` (IPAM), Calico (BGP/Felix), Cilium (eBPF/Identity), and Ingress Controller internals.
