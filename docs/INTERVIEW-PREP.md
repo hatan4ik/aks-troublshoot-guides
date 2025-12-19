@@ -197,7 +197,47 @@ This guide is designed to transform you from a Kubernetes *user* to a Kubernetes
 
 ---
 
-## 💻 Section 7: Coding (Platform Engineering)
+## 📊 Section 7: Deep Observability (Beyond Logs)
+
+### Scenario 15: The Prometheus Meltdown
+**Question:** "Our Prometheus server keeps OOMing. We allocated 64GB RAM, and it still crashes. What is happening?"
+
+**The Expert Path:**
+1.  **Cardinality Explosion:** Someone added a high-cardinality label (e.g., `user_id` or `request_id`) to a metric.
+    *   *Math:* 1 metric * 1M users = 1M new time series. Prometheus dies.
+2.  **The Fix:**
+    *   **Identify:** Query `topk(10, count by (__name__)({__name__=~".+"}))` to find the offender.
+    *   **Drop:** Update `metric_relabel_configs` to drop the label or the metric.
+    *   **Recording Rules:** Pre-aggregate data and drop raw series.
+
+### Scenario 16: The "It's Slow" Mystery
+**Question:** "Users complain the checkout page is slow. CPU is low. Logs show 200 OK. How do you find the bottleneck?"
+
+**The Expert Path:**
+1.  **Distributed Tracing (OpenTelemetry):** You need a trace context (TraceID) propagated across microservices.
+2.  **Span Analysis:** Look for the "Long Span".
+    *   Is it the DB query?
+    *   Is it a lock contention?
+    *   Is it an external API call?
+3.  **Tail Sampling:** If you sample 1% of traces, you might miss the error. Use *Tail Sampling* (keep trace IF latency > 2s).
+
+---
+
+## 💾 Section 8: Stateful Systems (The "Hard" Stuff)
+
+### Scenario 17: The Stuck Volume
+**Question:** "A node failed. The StatefulSet pod moved to a new node but is stuck in `ContainerCreating` with a 'Volume Attached to different node' error."
+
+**The Expert Path:**
+1.  **The Mechanism:** Cloud Block Storage (EBS/Azure Disk) is RWO (ReadWriteOnce). It can only attach to one node.
+2.  **The Failure:** The Control Plane (AttachDetachController) thinks the volume is still attached to the dead node. It waits 6 minutes for a graceful detach.
+3.  **The Fix:**
+    *   *Safe:* Wait.
+    *   *Emergency:* `kubectl delete pod <pod> --grace-period=0 --force`. This tells K8s "I certify the old node is dead, steal the volume." (Risk of data corruption if old node comes back!).
+
+---
+
+## 💻 Section 9: Coding (Platform Engineering)
 
 **Question:** "Write a Python script using the Kubernetes library to delete all deployments in 'dev-' namespaces that haven't been updated in 30 days."
 
