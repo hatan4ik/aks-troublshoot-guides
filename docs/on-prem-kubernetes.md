@@ -96,3 +96,26 @@ You need a stable IP for the API Server (`https://<vip>:6443`) that floats betwe
     2.  Wait for pod eviction.
     3.  Patch & Reboot.
     4.  `kubectl uncordon <node>`.
+
+**Q: "Explain the difference between MacVLAN and IPVLAN in the context of on-prem networking."**
+*   **A:**
+    *   **MacVLAN:** Allows a single physical interface to have multiple MAC addresses. Each pod gets its own MAC and IP on the physical network. Good for legacy apps needing L2 visibility. *Downside:* Switch port security limits (MAC address limits).
+    *   **IPVLAN:** Shares the physical MAC address but has different IPs. Better performance and scale (L3 mode). *Downside:* Pods cannot communicate with the host node directly.
+
+**Q: "How do you debug a physical NIC flapping issue affecting Kubernetes?"**
+*   **A:**
+    1.  **Check Kernel Logs:** `dmesg | grep -i "eth0"`. Look for "Link is Down" / "Link is Up" messages.
+    2.  **Check Switch Counters:** If you have access, check the physical switch port for CRC errors or flapping.
+    3.  **Check Kubelet:** Kubelet will mark the node `NotReady` if the primary interface goes down.
+    4.  **Fix:** Replace cable/SFP, update NIC firmware/driver (`ethtool -i eth0`), or bond interfaces (LACP) for redundancy.
+
+---
+
+## 6. Role-Based Operating Models
+
+To operationalize on-prem clusters effectively, refer to our role-specific guides:
+
+*   **[Architects Model](../docs/architects/README.md):** Designing for Hardware Failure, Storage Topologies, and Disaster Recovery.
+*   **[Engineers Model](../docs/engineers/README.md):** Handling Local Path Provisioners and Node Affinity.
+*   **[DevOps Model](../docs/devops/README.md):** PXE Boot Automation (MaaS) and GitOps for Bare Metal.
+*   **[SRE Model](../docs/sre/README.md):** Hardware Monitoring (Redfish/IPMI) and Physical Node Alerting.

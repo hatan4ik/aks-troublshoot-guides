@@ -112,7 +112,30 @@ Use this to audit your cluster:
 
 ---
 
-## 6. Advanced Interview Questions (FAANG Level)
+## 6. Supply Chain Security (Sigstore/Cosign)
+
+Securing the code *before* it reaches the cluster.
+
+### Scenario: "ImagePullBackOff: Signature Validation Failed"
+**Symptom:** You cannot deploy a new image. Error says "admission webhook 'policy.sigstore.dev' denied the request".
+**Debug:**
+1.  **Check the Signature:**
+    *   `cosign verify --key <public-key> <image>`
+    *   If this fails locally, the image was never signed or the key is wrong.
+2.  **Check the Policy:**
+    *   Does the `ClusterImagePolicy` require a *specific* key for this repo?
+    *   *Common Mistake:* Using the "prod" key to sign a "dev" image, but the policy expects the "dev" key.
+
+### Scenario: "The Malicious Dependency"
+**Symptom:** A vulnerability scanner (Trivy/Grype) alerts on a high-severity CVE in a running pod.
+**Response:**
+1.  **Isolate:** Label the pod `quarantine=true` and use NetworkPolicy to block all egress except to the forensics tool.
+2.  **Trace:** Use the SBOM (Software Bill of Materials) to find which library introduced the CVE.
+3.  **Patch:** Rebuild the image with the patched library -> Sign -> Deploy.
+
+---
+
+## 7. Advanced Interview Questions (FAANG Level)
 
 **Q1: How do you handle a "Break Glass" scenario where OPA is broken and preventing all updates?**
 *   **A:** "Break Glass" means restoring availability ASAP.

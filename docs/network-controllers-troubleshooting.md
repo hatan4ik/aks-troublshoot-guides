@@ -114,7 +114,34 @@ Most CNIs have two parts:
 
 ---
 
-## 6. Advanced Interview Questions (FAANG Level)
+## 7. Troubleshooting Service Mesh Interactions (Istio/Linkerd)
+
+Service Meshes sit *on top* of the CNI. If the CNI is broken, the Mesh won't work. But sometimes the Mesh breaks the app.
+
+### Scenario: "The Infinite Loop" (Sidecar Interception)
+**Symptom:** Pod starts, but application cannot connect to anything (Connection Refused), or requests timeout.
+**Debug:**
+1.  **Init Container Fail:**
+    *   Istio uses an `init-container` (`istio-init`) to program `iptables` rules that redirect *all* traffic to the `istio-proxy` (Envoy) sidecar.
+    *   Check logs: `kubectl logs <pod> -c istio-init`.
+    *   *Common Error:* `iptables-restore: unable to initialize table 'nat'`. (Requires `NET_ADMIN` capability).
+2.  **Bypass Interception:**
+    *   If you need to bypass the mesh for a specific port (e.g., a DB port the sidecar messes up), use the annotation:
+        `traffic.sidecar.istio.io/excludeOutboundPorts: "3306"`
+    *   This tells the init-container "Don't redirect port 3306 to Envoy."
+
+### Scenario: "mTLS Handshake Fail"
+**Symptom:** `503 Service Unavailable` or `upstream connect error`.
+**Debug:**
+1.  **Check DestinationRule:**
+    *   Is the client sending mTLS but the server expects Plaintext? (Or vice versa).
+    *   `istioctl proxy-config cluster <client-pod>` -> Check if the upstream cluster has `transport_socket_matches`.
+2.  **Strict vs Permissive:**
+    *   If migrating, ensure `PeerAuthentication` is set to `PERMISSIVE` (accept both mTLS and Plaintext) until all clients have sidecars.
+
+---
+
+## 8. Advanced Interview Questions (FAANG Level)
 
 **Q1: Explain the difference between `kube-proxy` ipvs mode and `iptables` mode.**
 *   **A:** `iptables` is O(N) rule traversal (slow with 10k services). Updates require reloading large chunks of rules. `ipvs` uses hash tables O(1) (fast) and supports better load balancing algorithms (Least Conn).

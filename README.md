@@ -84,18 +84,18 @@ The repository is organized by function and role:
 ```text
 .
 ├── docs/                            # Documentation Hub
-│   ├── INTERVIEW-PREP.md            # <--- START HERE
-│   ├── on-prem-kubernetes.md        # Bare Metal / DIY K8s
-│   ├── network-controllers-...md    # CNI & Ingress Troubleshooting
-│   ├── security-control-...md       # Policy & Identity Debugging
-│   ├── architects/                  # Design patterns (DR, Multi-tenancy)
-│   ├── engineers/                   # App debugging & performance
-│   ├── devops/                      # CI/CD & GitOps
-│   └── sre/                         # Observability & Incident Response
+│   ├── INTERVIEW-PREP.md            # <--- START HERE: FAANG Interview Questions
+│   ├── on-prem-kubernetes.md        # Bare Metal / DIY K8s Guide
+│   ├── network-controllers-...md    # CNI (Calico/Cilium) & Ingress Debugging
+│   ├── security-control-...md       # SCF, OPA/Kyverno & Runtime Security
+│   ├── architects/                  # Architecture & Design Patterns
+│   ├── engineers/                   # Development & Debugging
+│   ├── devops/                      # CI/CD & Infrastructure Automation
+│   └── sre/                         # Site Reliability Engineering (Observability)
 ├── scripts/
-│   ├── diagnostics/                 # Read-only health checks
-│   ├── fixes/                       # Auto-remediation tools
-│   └── monitoring/                  # Prometheus/Grafana setup
+│   ├── diagnostics/                 # Read-only health checks (Safe to run)
+│   ├── fixes/                       # Auto-remediation tools (Changes state)
+│   └── monitoring/                  # Prometheus/Grafana bootstrap
 ├── playbooks/                       # P0/P1 Incident Runbooks
 └── k8s/                             # Manifests & Example Apps
 ```
@@ -104,30 +104,33 @@ The repository is organized by function and role:
 
 ## 🛠️ Deep Dive Guides
 
-### On-Prem / Bare Metal
-Running K8s without AWS/Azure?
-*   [**Read the Guide**](./docs/on-prem-kubernetes.md)
+### 1. On-Prem / Bare Metal
+Running K8s without AWS/Azure? "You are the Cloud Provider."
+*   [**Read the On-Prem Guide**](./docs/on-prem-kubernetes.md)
 *   **Key Topics:** MetalLB (BGP vs L2), Rook/Ceph Storage, Etcd Defrag/Backup, VIP Management.
+*   **Interview Focus:** "How do you restore a failed etcd member?"
 
-### Network Controllers (CNI)
+### 2. Network Controllers (CNI) & Ingress
 When `Ping` fails, check the Controller.
-*   [**Read the Guide**](./docs/network-controllers-troubleshooting.md)
-*   **Key Topics:** AWS VPC CNI (IPAM), Calico (BGP), Cilium (eBPF), Nginx Ingress loops.
+*   [**Read the Networking Guide**](./docs/network-controllers-troubleshooting.md)
+*   **Key Topics:** AWS VPC CNI (IPAM), Calico (BGP), Cilium (eBPF), Nginx Ingress loops, Service Mesh.
+*   **Interview Focus:** "Debug a 504 Gateway Timeout vs a 502 Bad Gateway."
 
-### Security Control Framework (SCF)
-Compliance meets Engineering.
-*   [**Read the Guide**](./docs/security-control-framework.md)
-*   **Key Topics:** Debugging "Deny All" Policies, OPA Gatekeeper Break-Glass, Node Security.
+### 3. Security Control Framework (SCF)
+Compliance meets Engineering (NIST/CIS).
+*   [**Read the Security Guide**](./docs/security-control-framework.md)
+*   **Key Topics:** Debugging "Deny All" Policies, OPA Gatekeeper Break-Glass, Node Security, Supply Chain.
+*   **Interview Focus:** "How do you debug a 'Permission Denied' even when RBAC is correct?"
 
 ---
 
 ## 🤖 Automation & Scripts
 Stop manual debugging. Use the CLI tools in `scripts/`:
-*   **Diagnostics:** pods, network/DNS, resources, storage, deployments, Helm, GitOps.
-*   **Remediation:** restart failed pods, cleanup evicted, fix DNS, scale workloads.
-*   **Observability:** bootstrap Prometheus/Grafana, alerts, log aggregation.
+*   **Diagnostics:** `cluster-health`, `pod-diagnostics`, `network-diagnostics`.
+*   **Remediation:** `auto-restart-failed-pods`, `fix-dns-issues`.
+*   **Observability:** `setup-prometheus`, `configure-alerts`.
 
-For programmatic access, see the **[Programmatic Guide](./PROGRAMMATIC-GUIDE.md)**.
+For programmatic access and library usage, see the **[Programmatic Guide](./PROGRAMMATIC-GUIDE.md)**.
 
 ---
 
