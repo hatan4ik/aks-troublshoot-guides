@@ -1,35 +1,37 @@
-# Site Reliability Engineering (SRE) Guide
-Operate for uptime and fast recovery. This is a concise, action-first reference.
+# SRE Model: Observability, Reliability, and Incident Response in Kubernetes
 
-## Your Lens
-- Build observability (metrics/logs/traces) and actionable alerts.
-- Run incidents with discipline; capture learnings via post-mortems.
-- Plan capacity and performance with headroom.
+## Overview
+This section is tailored for Site Reliability Engineers (SREs) and focuses on maintaining the reliability, performance, and operational excellence of Kubernetes-based systems. It covers comprehensive observability, proactive incident management, and long-term system health strategies.
 
-## Chapters
-- Observability: metrics, logging, tracing, alerting.
-- Incidents: classification, escalation, post-mortem, communication.
-- Performance/Capacity: resource planning, tuning, autoscaling, cost.
+---
 
-## Run These First
-```bash
-../../scripts/diagnostics/cluster-health-check.sh
-../../scripts/diagnostics/network-diagnostics.sh
-../../scripts/diagnostics/resource-analysis.sh
-../../scripts/diagnostics/performance-analysis.sh
-../../scripts/monitoring/setup-prometheus.sh
-../../scripts/monitoring/configure-alerts.sh
-../../scripts/monitoring/health-dashboard.sh
-```
+## 📖 Table of Contents
+- [Observability at Scale](#observability-at-scale)
+- [Incident Response and Management](#incident-response-and-management)
+- [Service Level Objectives (SLOs) and Error Budgets](#service-level-objectives-slos-and-error-budgets)
+- [Capacity Planning and Performance Optimization](#capacity-planning-and-performance-optimization)
+- [Post-Mortems and Learning from Failures](#post-mortems-and-learning-from-failures)
+- [Automation for Reliability](#automation-for-reliability)
 
-## SLI/SLO Starters
-- Availability SLO: 99.9%
-- Latency SLI: P95 < 200ms
-- Error Rate SLI: < 0.1%
-- Throughput: peak load + 20% buffer
+---
 
-## Troubleshooting Focus
-- Service degradation: latency/error spikes, availability drops.
-- Resource exhaustion: CPU/memory/storage/network pressure.
-- Scaling: HPA/VPA/cluster-autoscaler behavior.
-- Infra failures: node/CNI/DNS/ingress/load balancer issues.
+## Observability at Scale
+Implementing robust monitoring, logging, and tracing solutions to gain deep insights into cluster and application health.
+-   [**Guide:** Observability at Scale](./observability-at-scale.md)
+
+## Incident Response and Management
+Establishing clear processes and tools for detecting, responding to, and resolving production incidents efficiently.
+-   [**Guide:** Emergency Response (Root)](../emergency-response.md)
+
+## Service Level Objectives (SLOs) and Error Budgets
+Defining and tracking key reliability metrics to balance innovation with stability.
+
+## Capacity Planning and Performance Optimization
+Proactively managing cluster resources and optimizing workload performance to prevent issues.
+
+## Post-Mortems and Learning from Failures
+Conducting blameless post-mortems to identify root causes and implement preventative measures.
+-   [**Template:** Post-Mortem Template](../../templates/post-mortem-template.md)
+
+## Automation for Reliability
+Developing automated solutions for diagnostics, remediation, and proactive maintenance to reduce toil.

@@ -1,28 +1,62 @@
-# DevOps Team Guide
-Run delivery, infra automation, and safe rollouts. This guide emphasizes short runbooks and reproducible steps.
+# DevOps Model: CI/CD, GitOps, and Release Strategies in Kubernetes
 
-## Your Lens
-- Keep CI/CD green and fast.
-- Automate cluster/node/network/storage baselines.
-- Ship changes safely (blue/green, canary, rolling, GitOps).
+## Overview
+This section outlines best practices and troubleshooting techniques for DevOps practitioners working with Kubernetes. It covers the full lifecycle from cluster provisioning and configuration to continuous integration, continuous delivery (CI/CD), GitOps, and advanced deployment strategies.
 
-## Chapters
-- Pipelines: [Build Failures](build-failures.md), [Deployment Failures](deployment-failures.md), [Registry Issues](registry-issues.md), [Rollback Procedures](rollback-procedures.md)
-- Infra: [Cluster Provisioning](cluster-provisioning.md), [Node Management](node-management.md), [Networking Setup](networking-setup.md), [Storage Configuration](storage-configuration.md)
-- Strategies: [Blue-Green](blue-green.md), [Canary](canary.md), [Rolling Updates](rolling-updates.md), [GitOps](gitops.md)
+---
 
-## Run These First
-```bash
-../../scripts/diagnostics/cluster-health-check.sh
-../../scripts/diagnostics/pipeline-debug.sh
-../../scripts/diagnostics/deployment-diagnostics.sh <deployment> <namespace>
-../../scripts/diagnostics/resource-analysis.sh
-../../scripts/diagnostics/performance-analysis.sh
-../../scripts/diagnostics/security-audit.sh
-```
+## 📖 Table of Contents
+- [Cluster Provisioning and Setup](#cluster-provisioning-and-setup)
+- [Build Failures in CI](#build-failures-in-ci)
+- [Deployment Failures](#deployment-failures)
+- [GitOps Workflows and Troubleshooting](#gitops-workflows-and-troubleshooting)
+- [Registry Issues (Image Pull Failures)](#registry-issues-image-pull-failures)
+- [Rolling Updates and Rollback Procedures](#rolling-updates-and-rollback-procedures)
+- [Canary and Blue/Green Deployments](#canary-and-bluegreen-deployments)
+- [Networking Setup for DevOps](#networking-setup-for-devops)
+- [Node Management for Operations](#node-management-for-operations)
+- [Storage Configuration for DevOps](#storage-configuration-for-devops)
 
-## Troubleshooting Focus
-- Pipelines: build/test/publish failures, registry auth/rate limits.
-- Deployments: rollout stalls, probe failures, image pulls, config drift.
-- Infra: node readiness, CNI/DNS/ingress, storage attach/bind.
-- Drift/GitOps: ensure desired state via `gitops-diagnostics.sh` and `helm-diagnostics.sh`.
+---
+
+## Cluster Provisioning and Setup
+Automating the setup and configuration of Kubernetes clusters on various cloud providers or on-premises.
+-   [**Guide:** Cluster Provisioning](./cluster-provisioning.md)
+
+## Build Failures in CI
+Diagnosing and resolving common issues encountered during the build phase of the CI pipeline.
+-   [**Guide:** Build Failures](./build-failures.md)
+
+## Deployment Failures
+Troubleshooting applications that fail to deploy or become ready after deployment.
+-   [**Guide:** Deployment Failures](./deployment-failures.md)
+
+## GitOps Workflows and Troubleshooting
+Implementing and debugging GitOps patterns using tools like Argo CD or Flux CD.
+-   [**Guide:** GitOps](./gitops.md)
+
+## Registry Issues (Image Pull Failures)
+Resolving problems related to pulling container images from private or public registries.
+-   [**Guide:** Registry Issues](./registry-issues.md)
+
+## Rolling Updates and Rollback Procedures
+Strategies for safe application updates and quick recovery from failed deployments.
+-   [**Guide:** Rolling Updates](./rolling-updates.md)
+-   [**Guide:** Rollback Procedures](./rollback-procedures.md)
+
+## Canary and Blue/Green Deployments
+Implementing advanced deployment strategies for minimizing risk and ensuring smooth rollouts.
+-   [**Guide:** Canary](./canary.md)
+-   [**Guide:** Blue/Green](./blue-green.md)
+
+## Networking Setup for DevOps
+Configuring and troubleshooting network components, including Ingress, LoadBalancers, and DNS.
+-   [**Guide:** Networking Setup](./networking-setup.md)
+
+## Node Management for Operations
+Maintaining the health and stability of cluster nodes, including patching, upgrades, and draining.
+-   [**Guide:** Node Management](./node-management.md)
+
+## Storage Configuration for DevOps
+Setting up and managing persistent storage for applications.
+-   [**Guide:** Storage Configuration](./storage-configuration.md)
