@@ -1,66 +1,122 @@
 # Kubernetes/AKS/EKS Troubleshooting Guide  
-Zero-to-hero with automation for architects, engineers, DevOps, SREs, and technical writers.
+**Zero-to-Hero with Automation for Architects, Engineers, DevOps, SREs, and Technical Writers.**
 
-## How to Use This Guide
-- **In an incident**: Run the Emergency Checklist below, then dive into the playbook for your symptom.
-- **For prevention**: Follow the role guides and automation sections to bake guardrails into CI/CD and operations.
-- **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
-
-## 🎓 Interview Preparation (FAANG/MANGA)
-**Targeting a Senior SRE/Platform role?**
-This repository isn't just a toolkit; it's a study guide.
-- 👉 **[Read the FAANG Interview Prep Guide](./docs/INTERVIEW-PREP.md)**
-- **Topics Covered:** Deep troubleshooting (OOM, CrashLoop), System Design (Scaling to 5k nodes), K8s Internals (Packet walks), and Automation coding.
-
-## Quick Start (Do This First)
-- Install and configure `kubectl`; add Azure CLI (AKS) or AWS CLI (EKS) as needed.
-- Validate connectivity: `kubectl cluster-info`
-- Run the Emergency Checklist:
-  1) Cluster health: `./scripts/diagnostics/cluster-health-check.sh`  
-  2) Pod issues: `./scripts/diagnostics/pod-diagnostics.sh`  
-  3) Network/DNS: `./scripts/diagnostics/network-diagnostics.sh`  
-  4) Resources: `./scripts/diagnostics/resource-analysis.sh`  
-  5) Storage: `./scripts/diagnostics/storage-analysis.sh`  
-  6) Stuck rollout: `./scripts/diagnostics/deployment-diagnostics.sh <deploy> <ns>`  
-  7) DNS repair: `./scripts/fixes/fix-dns-issues.sh`
-
-## Repository Map
-```
-├── docs/
-│   ├── architects/      # Cluster design, security, DR, sizing, mesh
-│   ├── engineers/       # App debugging, perf, config, images
-│   ├── devops/          # CI/CD, GitOps, rollout strategies, infra
-│   ├── sre/             # Observability, incident response, SLOs
-│   └── copywriters/     # Style, templates, documentation QA
-├── scripts/
-│   ├── diagnostics/     # Health, network, storage, rollout, GitOps
-│   ├── fixes/           # Pods/DNS cleanup, scaling, cert refresh
-│   └── monitoring/      # Prometheus/Grafana/alerts/logs bootstrap
-├── playbooks/           # Severity-focused runbooks (P0/P1)
-├── templates/           # Troubleshooting, runbook, post-mortem, API
-└── k8s/                 # Deployment manifests for the diagnostics API
-```
-
-## Role Cheat Sheet
-- **Architects**: Start at `docs/architects/` for tenancy, network, security, DR, sizing, and mesh patterns.
-- **Engineers**: See `docs/engineers/` for pod startup, images, config/secrets, debugging, testing, performance.
-- **DevOps**: Use `docs/devops/` for CI/CD failures, registry issues, GitOps, rollout patterns, infra setup.
-- **SREs**: Check `docs/sre/` for monitoring, alerting, incident process, capacity/perf.
-- **Technical Writers**: Follow `docs/copywriters/` with templates in `templates/`.
-
-## Automation Highlights
-- Diagnostics: pods, network/DNS, resources, storage, deployments, Helm, GitOps, pipelines.
-- Remediation: restart failed pods, cleanup evicted, fix DNS, scale workloads, cert refresh.
-- Observability: quick-start Prometheus/Grafana, baseline alerts, starter health dashboard, log aggregation.
-- Programmatic: REST API and CLI for detect/fix flows (see `PROGRAMMATIC-GUIDE.md`).
-
-## Supported Platforms
-- AKS, EKS, self-managed Kubernetes, and GKE (patterns and scripts are cloud-aware where needed).
-
-## Incident Escalation
-Use the [Emergency Response Guide](docs/emergency-response.md). It defines roles, cadence, and cloud-provider escalation paths.
+This repository is a comprehensive toolkit and study guide for mastering Kubernetes operations, debugging, and architecture. It is designed to help you pass **FAANG/MANGA** interviews and survive P0 incidents in production.
 
 ---
-Version: 1.0.0  
-Maintainers: FAAN Board (Architects, Engineers, DevOps, SREs, Technical Writers)  
-Last Updated: $(date)
+
+## 📖 Table of Contents
+- [How to Use This Guide](#how-to-use-this-guide)
+- [🎓 **FAANG Interview Prep (Start Here)**](#-faang-interview-prep-start-here)
+- [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
+- [🗺️ Repository Map](#-repository-map)
+- [🛠️ Deep Dive Guides](#-deep-dive-guides)
+    - [On-Prem / Bare Metal](#on-prem--bare-metal)
+    - [Network Controllers (CNI)](#network-controllers-cni)
+    - [Security Control Framework (SCF)](#security-control-framework-scf)
+- [🤖 Automation & Scripts](#-automation--scripts)
+- [👥 Role-Based Learning](#-role-based-learning)
+
+---
+
+## How to Use This Guide
+- **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
+- **For prevention**: Follow the role guides and automation sections to bake guardrails into CI/CD.
+- **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
+
+---
+
+## 🎓 FAANG Interview Prep (Start Here)
+**Targeting a Senior SRE/Platform role?**
+This repository is your study guide for "System Design" and "Deep Troubleshooting" rounds.
+
+1.  👉 **[The Master Interview Guide](./docs/INTERVIEW-PREP.md)**  
+    *Covers: Deep Debugging (OOM, CrashLoop), Scaling to 5k nodes, Packet Walks, and Internals.*
+2.  **[On-Prem / Bare Metal Questions](./docs/on-prem-kubernetes.md)**  
+    *Covers: Etcd management, BGP LoadBalancing, Storage without Cloud.*
+3.  **[Network Controller Deep Dive](./docs/network-controllers-troubleshooting.md)**  
+    *Covers: CNI wars (Cilium vs Calico), IPAM exhaustion, Ingress internals.*
+4.  **[Security Framework Scenarios](./docs/security-control-framework.md)**  
+    *Covers: OPA/Kyverno debugging, Identity (IRSA/OIDC), Runtime Security (Falco).*
+
+---
+
+## 🚀 Quick Start (Emergency Response)
+**Cluster on fire? Run these checks immediately.**
+
+1.  **Validate Connectivity:**
+    ```bash
+    kubectl cluster-info
+    ```
+2.  **Run Diagnostics Scripts:**
+    *   🚑 **Cluster Health:** `./scripts/diagnostics/cluster-health-check.sh`
+    *   📦 **Pod Issues:** `./scripts/diagnostics/pod-diagnostics.sh`
+    *   🌐 **Network/DNS:** `./scripts/diagnostics/network-diagnostics.sh`
+    *   💾 **Storage:** `./scripts/diagnostics/storage-analysis.sh`
+    *   📉 **Resources:** `./scripts/diagnostics/resource-analysis.sh`
+3.  **Apply Fixes (Use Caution):**
+    *   `./scripts/fixes/fix-dns-issues.sh`
+    *   `./scripts/fixes/auto-restart-failed-pods.sh`
+
+---
+
+## 🗺️ Repository Map
+```text
+.
+├── docs/
+│   ├── INTERVIEW-PREP.md            # <--- START HERE
+│   ├── on-prem-kubernetes.md        # Bare Metal / DIY K8s
+│   ├── network-controllers-...md    # CNI & Ingress Troubleshooting
+│   ├── security-control-...md       # Policy & Identity Debugging
+│   ├── architects/                  # Design patterns (DR, Multi-tenancy)
+│   ├── engineers/                   # App debugging & performance
+│   ├── devops/                      # CI/CD & GitOps
+│   └── sre/                         # Observability & Incident Response
+├── scripts/
+│   ├── diagnostics/                 # Read-only health checks
+│   ├── fixes/                       # Auto-remediation tools
+│   └── monitoring/                  # Prometheus/Grafana setup
+├── playbooks/                       # P0/P1 Incident Runbooks
+└── k8s/                             # Manifests & Example Apps
+```
+
+---
+
+## 🛠️ Deep Dive Guides
+
+### On-Prem / Bare Metal
+Running K8s without AWS/Azure?
+*   [**Read the Guide**](./docs/on-prem-kubernetes.md)
+*   **Key Topics:** MetalLB (BGP vs L2), Rook/Ceph Storage, Etcd Defrag/Backup, VIP Management.
+
+### Network Controllers (CNI)
+When `Ping` fails, check the Controller.
+*   [**Read the Guide**](./docs/network-controllers-troubleshooting.md)
+*   **Key Topics:** AWS VPC CNI (IPAM), Calico (BGP), Cilium (eBPF), Nginx Ingress loops.
+
+### Security Control Framework (SCF)
+Compliance meets Engineering.
+*   [**Read the Guide**](./docs/security-control-framework.md)
+*   **Key Topics:** Debugging "Deny All" Policies, OPA Gatekeeper Break-Glass, Node Security.
+
+---
+
+## 🤖 Automation & Scripts
+Stop manual debugging. Use the CLI tools in `scripts/`:
+*   **Diagnostics:** pods, network/DNS, resources, storage, deployments, Helm, GitOps.
+*   **Remediation:** restart failed pods, cleanup evicted, fix DNS, scale workloads.
+*   **Observability:** bootstrap Prometheus/Grafana, alerts, log aggregation.
+
+---
+
+## 👥 Role-Based Learning
+*   **Architects**: See `docs/architects/` for tenancy, network, security, DR.
+*   **Engineers**: See `docs/engineers/` for pod startup, images, config/secrets.
+*   **DevOps**: Use `docs/devops/` for CI/CD failures, GitOps, rollouts.
+*   **SREs**: Check `docs/sre/` for monitoring, alerting, incident process.
+
+---
+
+*Version: 1.1.0*  
+*Maintainers: FAANG Board*  
+*Last Updated: December 2025*

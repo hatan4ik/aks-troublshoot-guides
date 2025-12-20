@@ -114,13 +114,31 @@ Most CNIs have two parts:
 
 ---
 
-## 6. Controller Interview Questions
+## 6. Advanced Interview Questions (FAANG Level)
 
-**Q: Explain the difference between `kube-proxy` ipvs mode and `iptables` mode.**
-*   **A:** `iptables` is O(N) rule traversal (slow with 10k services). `ipvs` uses hash tables O(1) (fast).
+**Q1: Explain the difference between `kube-proxy` ipvs mode and `iptables` mode.**
+*   **A:** `iptables` is O(N) rule traversal (slow with 10k services). Updates require reloading large chunks of rules. `ipvs` uses hash tables O(1) (fast) and supports better load balancing algorithms (Least Conn).
 
-**Q: Why would you choose Cilium over Calico?**
-*   **A:** Performance (eBPF bypasses iptables/conntrack for some paths), Observability (Hubble flows), and advanced L7 Policy features without a sidecar.
+**Q2: Why would you choose Cilium over Calico?**
+*   **A:** Performance (eBPF bypasses iptables/conntrack for some paths), Observability (Hubble flows provide L7 visibility), and advanced L7 Policy features without a sidecar. It also replaces kube-proxy fully.
 
-**Q: How does the Cloud Controller Manager (CCM) interact with Ingress?**
+**Q3: How does the Cloud Controller Manager (CCM) interact with Ingress?**
 *   **A:** It doesn't directly. CCM manages `Services` of type `LoadBalancer` (creating the cloud LB). Ingress Controllers (like ALB Controller) talk directly to Cloud APIs to create L7 LBs.
+
+**Q4: A CNI upgrade failed and left the cluster in a broken state. New pods stick in `ContainerCreating`. How do you recover?**
+*   **A:**
+    1.  **Check CNI Config:** Kubelet reads `/etc/cni/net.d/`. Did the upgrade leave a malformed config or multiple configs? Kubelet uses the first one alphabetically.
+    2.  **Rollback:** Revert the DaemonSet manifest.
+    3.  **Restart Kubelet:** Sometimes Kubelet caches the CNI client state. `systemctl restart kubelet`.
+    4.  **Manually Clean:** If `ip link` shows zombie interfaces, you might need to manually delete them (carefully!).
+
+**Q5: We are seeing intermittent connection resets (RST) between pods. How do you verify if it's a `conntrack` issue?**
+*   **A:**
+    1.  Check `conntrack -S` (stats) on the node. Look for `insert_failed` counter incrementing.
+    2.  Check `dmesg` for `nf_conntrack: table full`.
+    3.  **Fix:** Increase `net.netfilter.nf_conntrack_max` sysctl or switch to stateless LB (DSR) if possible (Cilium/Kube-router).
+
+**Q6: How does "External Traffic Policy: Local" work?**
+*   **A:** It preserves the client Source IP.
+    *   *Default (Cluster):* LB -> Node A -> Node B (Pod). Source IP is SNAT'd to Node A's IP.
+    *   *Local:* LB -> Node A. If Pod is there, traffic flows (IP preserved). If not, traffic is DROPPED (Health check must fail for nodes without pods).

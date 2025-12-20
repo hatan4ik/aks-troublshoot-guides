@@ -110,14 +110,38 @@ Use this to audit your cluster:
     *   [ ] Encryption at Rest enabled for etcd?
     *   [ ] Secrets externalized (Vault/ASM/AKV)?
 
-## 6. Interview "Gotcha" Questions
+---
 
-**Q: How do you handle a "Break Glass" scenario where OPA is broken and preventing all updates?**
-*   **A:** Direct access to the `ValidatingWebhookConfiguration`. `kubectl delete` or `kubectl edit` to remove the intercept rule. Then fix OPA. Finally, restore the webhook.
+## 6. Advanced Interview Questions (FAANG Level)
 
-**Q: A developer says "I need `privileged` mode for my build container". How do you respond securely?**
-*   **A:** "No."
+**Q1: How do you handle a "Break Glass" scenario where OPA is broken and preventing all updates?**
+*   **A:** "Break Glass" means restoring availability ASAP.
+    1.  **Identify:** Verify OPA is the blocker (timeout errors in API server logs).
+    2.  **Bypass:** `kubectl delete validatingwebhookconfiguration <opa-config>`.
+    3.  **Remediate:** Fix the OPA pod/policy.
+    4.  **Restore:** Re-apply the Webhook Configuration.
+    5.  **Audit:** Who broke the glass? (RBAC logs).
+
+**Q2: A developer says "I need `privileged` mode for my build container". How do you respond securely?**
+*   **A:** "No." Privileged mode breaks container isolation (access to host devices, ability to load kernel modules).
 *   **Alternatives:**
-    *   Use Kaniko (builds images without root).
-    *   Use a separate, isolated cluster for builds.
-    *   Use specific capabilities (`CAP_SETUID` etc) if absolutely needed, but never full privileged.
+    *   **Kaniko/Buildah:** Build images in userspace without root daemon.
+    *   **Isolated Node:** Taint a node specifically for unsafe builds and use `tolerations`.
+    *   **Capabilities:** Grant only `CAP_SETUID` or `CAP_SYS_ADMIN` (still risky, but better) instead of full privileged.
+
+**Q3: We implemented a "Default Deny" Network Policy, and now DNS is broken. Why?**
+*   **A:** You blocked Egress traffic to UDP port 53.
+*   **Fix:** Add a NetworkPolicy allowing Egress to the `kube-system` namespace (where CoreDNS lives) on port 53 (UDP/TCP).
+
+**Q4: An attacker gained access to a pod. How do you prevent them from pivoting to the cloud provider API (e.g., stealing AWS credentials)?**
+*   **A:**
+    1.  **Block Metadata Service:** NetworkPolicy denying egress to `169.254.169.254`.
+    2.  **IMDSv2:** Enforce Instance Metadata Service Version 2 (requires session token, harder to spoof/SSRF).
+    3.  **Least Privilege:** Ensure the Node's IAM role has minimal permissions. Pods should use IRSA (Pod Identity), not Node Identity.
+
+**Q5: How do you debug a Certificate Authority (CA) rotation failure?**
+*   **A:**
+    1.  **Symptom:** API Server stops trusting Kubelets, or ServiceAccount tokens become invalid.
+    2.  **Check:** Did you update the CA bundle in the `kube-root-ca.crt` ConfigMap in every namespace?
+    3.  **Check:** Did you restart components to pick up the new CA?
+    4.  **Rollback:** Keep the old CA in the bundle as "trusted" until the rotation is 100% complete.
