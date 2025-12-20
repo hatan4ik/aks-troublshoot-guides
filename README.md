@@ -6,6 +6,7 @@ This repository is a comprehensive toolkit and study guide for mastering Kuberne
 ---
 
 ## 📖 Table of Contents
+- [Prerequisites & Setup](#-prerequisites--setup)
 - [How to Use This Guide](#how-to-use-this-guide)
 - [🎓 **FAANG Interview Prep (Start Here)**](#-faang-interview-prep-start-here)
 - [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
@@ -15,13 +16,30 @@ This repository is a comprehensive toolkit and study guide for mastering Kuberne
     - [Network Controllers (CNI)](#network-controllers-cni)
     - [Security Control Framework (SCF)](#security-control-framework-scf)
 - [🤖 Automation & Scripts](#-automation--scripts)
-- [👥 Role-Based Learning](#-role-based-learning)
+- [👥 Role-Based Operating Models](#-role-based-operating-models)
+
+---
+
+## 📦 Prerequisites & Setup
+Before using the advanced features of this guide, ensure you have the necessary tooling installed.
+
+### 1. Install the Gemini CLI
+This project leverages the Gemini CLI for AI-assisted debugging and analysis.
+```bash
+npm install -g @google/gemini-cli
+```
+
+### 2. Install Kubernetes Tools
+Ensure you have the standard K8s toolchain:
+*   `kubectl`
+*   `helm`
+*   `python3` (for the diagnostics CLI)
 
 ---
 
 ## How to Use This Guide
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
-- **For prevention**: Follow the role guides and automation sections to bake guardrails into CI/CD.
+- **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
 
 ---
@@ -61,9 +79,11 @@ This repository is your study guide for "System Design" and "Deep Troubleshootin
 ---
 
 ## 🗺️ Repository Map
+The repository is organized by function and role:
+
 ```text
 .
-├── docs/
+├── docs/                            # Documentation Hub
 │   ├── INTERVIEW-PREP.md            # <--- START HERE
 │   ├── on-prem-kubernetes.md        # Bare Metal / DIY K8s
 │   ├── network-controllers-...md    # CNI & Ingress Troubleshooting
@@ -107,13 +127,17 @@ Stop manual debugging. Use the CLI tools in `scripts/`:
 *   **Remediation:** restart failed pods, cleanup evicted, fix DNS, scale workloads.
 *   **Observability:** bootstrap Prometheus/Grafana, alerts, log aggregation.
 
+For programmatic access, see the **[Programmatic Guide](./PROGRAMMATIC-GUIDE.md)**.
+
 ---
 
-## 👥 Role-Based Learning
-*   **Architects**: See `docs/architects/` for tenancy, network, security, DR.
-*   **Engineers**: See `docs/engineers/` for pod startup, images, config/secrets.
-*   **DevOps**: Use `docs/devops/` for CI/CD failures, GitOps, rollouts.
-*   **SREs**: Check `docs/sre/` for monitoring, alerting, incident process.
+## 👥 Role-Based Operating Models
+We provide specific "Models" for each role in your organization to ensure comprehensive coverage:
+
+*   **[Architects Model](./docs/architects/README.md)**: Focus on Tenancy, Network Topology, Security Architecture, and DR.
+*   **[Engineers Model](./docs/engineers/README.md)**: Focus on Pod Startup, Container Images, Config/Secrets, and Local Dev.
+*   **[DevOps Model](./docs/devops/README.md)**: Focus on CI/CD Failures, GitOps Workflows, and Rolling Updates.
+*   **[SRE Model](./docs/sre/README.md)**: Focus on Observability, SLIs/SLOs, Alerting, and Incident Response.
 
 ---
 
