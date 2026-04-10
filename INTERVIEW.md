@@ -1,7 +1,4 @@
 # Kubernetes Live Debug — Interview Cheat Sheet
-
-> One file. Stay here. Use the ToC to jump to your symptom. Deeper links are for prep — ignore them during the interview.
-
 ---
 
 ## Quick Navigation
@@ -21,6 +18,36 @@
 | PVC shows `Pending` | [Storage / PVC](#storage--pvc) |
 | Job shows `Failed` / `BackoffLimitExceeded` | [Jobs](#jobs) |
 | Node shows `NotReady` | [Node NotReady](#node-notready) |
+
+---
+
+## Senior-Level Signals
+
+Say these out loud during the interview. They signal that you think in systems, not in commands.
+
+**On your debugging approach:**
+> "Most guides are case-based, but I prefer a layered model — I start from pod health, then service routing, then cluster networking, then cloud infrastructure like NSGs and load balancers. That way I never jump to the network layer when the problem is actually a missing ConfigMap key."
+
+**On where to start:**
+> "Before I run a single command I read the events — events tell me *why* something failed, `kubectl top` tells me *what* the state is. I want the why first."
+
+**On not guessing:**
+> "I won't make a change until I can state the symptom, the root cause, and the exact field I'm about to patch. If I can't do all three, I'm still in the investigation phase."
+
+**On the two failure paths:**
+> "Every failure is either a scheduling problem — the pod never ran — or a runtime problem — it ran and then broke. That split tells me immediately whether to look at node capacity and taints, or at logs and probes."
+
+**On connection refused vs timeout:**
+> "Connection refused means the app layer rejected it — wrong port, app not listening, probe path wrong. Timeout means the network layer dropped it — NetworkPolicy, NSG, routing. That one distinction cuts the search space in half before I run anything."
+
+**On monitoring blind spots:**
+> "If someone says OOMKilled but Prometheus shows 60% memory usage, I don't argue with Prometheus — I explain that it scrapes every 30 seconds. A memory spike that kills the pod in 100ms simply won't appear in the graph."
+
+**On immutability gotchas:**
+> "Two things that catch everyone in production: Jobs and PVCs are both immutable after creation. You cannot patch them — you delete and re-create. Knowing that saves five minutes of confused `kubectl patch` failures."
+
+**On readiness vs liveness:**
+> "Readiness answers: should this pod receive traffic? Liveness answers: should this pod be restarted? Mixing them up is the most common probe mistake I see in production — a liveness probe that's too aggressive will restart a healthy app on every slow startup."
 
 ---
 
@@ -128,6 +155,8 @@ kubectl patch deployment <deploy> -n <ns> --type='json' -p='[
 
 **Symptom:** `CrashLoopBackOff` or `Error`
 
+> **Signal:** "My first move is always the exit code, not the logs. If the process never wrote to stdout, logs are empty — but the exit code is always there."
+
 **First: read the exit code — it tells you the category of failure.**
 
 ```bash
@@ -170,6 +199,8 @@ kubectl get secret <secret> -n <ns> -o yaml
 ## OOM Killed
 
 **Symptom:** Pod restarts with exit code `137`. `kubectl describe` shows `OOMKilled: true`.
+
+> **Signal:** "If the interviewer says 'but Prometheus shows only 60% memory usage' — Prometheus scrapes every 30s. A spike that kills the pod in under a second won't appear in the graph. The exit code 137 is the ground truth."
 
 ```bash
 kubectl describe pod <pod> -n <ns>
@@ -304,6 +335,8 @@ kubectl get configmap <name> -n <ns>
 
 **Symptom:** Pod `Running` and `Ready`. Service exists. `curl` returns `connection refused` or no response.
 
+> **Signal:** "I always work the chain in order — pod Ready, selector matches labels, endpoints populated, targetPort correct. I never skip a step because each one eliminates an entire class of causes."
+
 **Work the chain: pod → labels → service selector → endpoints → port.**
 
 ```bash
@@ -378,6 +411,7 @@ kubectl patch ingress <ingress> -n <ns> --type='json' \
 
 **Symptom:** Pod `Running` and `Ready`, endpoints populated, but traffic **times out** (not connection refused).
 
+> **Signal:** "Connection refused is the app layer — wrong port, app not up. Timeout is the network layer — something is dropping the packet. I use that split before running a single command. If I see timeout with healthy endpoints, I go straight to NetworkPolicy."
 > Key distinction: `connection refused` = app not listening on that port. `Timeout` = network path is dropping packets → suspect NetworkPolicy.
 
 ```bash
