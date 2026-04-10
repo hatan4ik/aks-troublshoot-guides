@@ -129,6 +129,36 @@ class DiagnosticsCLI:
                         "journalctl -u kubelet on the node"
                     ),
                 }
+            elif issue["type"] == "node_pressure":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe node <node> — check Conditions and Allocatable. "
+                        "MemoryPressure: free memory or evict pods. "
+                        "DiskPressure: clear logs/images with 'crictl rmi --prune'. "
+                        "PIDPressure: check for fork-bombing processes on node. "
+                        "NetworkUnavailable: check CNI plugin pods in kube-system."
+                    ),
+                }
+            elif issue["type"] == "warning_events":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl get events -A --field-selector type=Warning "
+                        "--sort-by=.lastTimestamp | tail -30 — "
+                        "then use 'diagnose <ns> <pod>' for any affected pod"
+                    ),
+                }
+            elif issue["type"] == "control_plane_unhealthy":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl get componentstatuses — "
+                        "etcd: check etcd pod logs and disk space. "
+                        "scheduler/controller-manager: check kube-system pod logs. "
+                        "Note: on AKS/EKS/GKE the control plane is managed and not visible here."
+                    ),
+                }
             elif issue["type"] == "pending_pods":
                 entry["suggested_fix"] = {
                     "action": "see_scheduling_analysis",

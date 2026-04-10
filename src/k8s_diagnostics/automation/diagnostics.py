@@ -497,7 +497,7 @@ class DiagnosticsEngine:
         """Auto-detect cluster issues. Pending pods now include a scheduling breakdown."""
         issues = []
 
-        # Nodes not ready
+        # Nodes not ready + node pressure conditions
         nodes = self.k8s.v1.list_node()
         not_ready = [
             n.metadata.name for n in nodes.items
@@ -512,6 +512,17 @@ class DiagnosticsEngine:
                 "severity": "high",
                 "count": len(not_ready),
                 "details": not_ready[:5],
+            })
+
+        # Check 2a: Node pressure conditions (MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable)
+        node_pressure = self._check_node_pressure(nodes.items)
+        if node_pressure:
+            issues.append({
+                "type": "node_pressure",
+                "severity": "high",
+                "count": len(node_pressure),
+                "details": node_pressure[:5],
+                "hint": "kubectl describe node <node> — check Conditions and Allocatable",
             })
 
         # Failed / Pending pods — with scheduling breakdown for Pending ones
@@ -614,6 +625,28 @@ class DiagnosticsEngine:
                 "hint": "Use 'diagnose <ns> <pod>' for per-container probe analysis",
             })
 
+        # Warning events cluster-wide (last 1 hour)
+        warning_events = self._check_warning_events()
+        if warning_events:
+            issues.append({
+                "type": "warning_events",
+                "severity": "medium",
+                "count": len(warning_events),
+                "details": warning_events[:10],
+                "hint": "kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp",
+            })
+
+        # Control plane component health (etcd, scheduler, controller-manager)
+        component_issues = self._check_component_health()
+        if component_issues:
+            issues.append({
+                "type": "control_plane_unhealthy",
+                "severity": "high",
+                "count": len(component_issues),
+                "details": component_issues,
+                "hint": "kubectl get componentstatuses",
+            })
+
         return {"issues": issues, "timestamp": datetime.now().isoformat()}
 
     def _find_probe_failures(self, pods: List[V1Pod]) -> List[str]:
@@ -627,6 +660,83 @@ class DiagnosticsEngine:
                         f"{pod.metadata.namespace}/{pod.metadata.name} (container: {cs.name})"
                     )
         return failures
+
+    # ─────────────────────────────────────────────────────────────
+    # New checks: node pressure, warning events, component health
+    # ─────────────────────────────────────────────────────────────
+
+    # Pressure condition types that indicate the node is under stress.
+    # Ready=False is already handled above; these are the *additional* conditions.
+    _PRESSURE_CONDITIONS = ("MemoryPressure", "DiskPressure", "PIDPressure", "NetworkUnavailable")
+
+    def _check_node_pressure(self, node_items) -> List[str]:
+        """Return list of '<node>: <condition>' strings for nodes under pressure."""
+        pressured = []
+        for node in node_items:
+            for condition in (node.status.conditions or []):
+                if condition.type in self._PRESSURE_CONDITIONS and condition.status == "True":
+                    pressured.append(f"{node.metadata.name}: {condition.type} ({condition.message or 'no message'})")
+        return pressured
+
+    def _check_warning_events(self) -> List[str]:
+        """Return deduplicated Warning events from the last hour across all namespaces.
+
+        Each entry is: '<namespace>/<object> — <reason>: <message>'
+        Skips events with no timestamp (pre-existing, already-flushed events).
+        """
+        try:
+            events = self.k8s.v1.list_event_for_all_namespaces(
+                field_selector="type=Warning"
+            )
+        except Exception:
+            return []
+
+        from datetime import timezone
+        now = datetime.now(tz=timezone.utc)
+        results = []
+        seen = set()
+        for e in events.items:
+            # Filter to last hour using last_timestamp or event_time
+            ts = e.last_timestamp or e.event_time
+            if ts is None:
+                continue
+            # Make tz-aware for comparison
+            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            age_seconds = (now - ts).total_seconds()
+            if age_seconds > 3600:
+                continue
+            key = f"{e.involved_object.namespace}/{e.involved_object.name}|{e.reason}"
+            if key in seen:
+                continue
+            seen.add(key)
+            ns = e.involved_object.namespace or "cluster"
+            msg = (e.message or "")[:120]
+            results.append(f"{ns}/{e.involved_object.name} — {e.reason}: {msg}")
+        return results
+
+    def _check_component_health(self) -> List[str]:
+        """Check control plane components via the ComponentStatus API.
+
+        Returns list of unhealthy component descriptions.
+        Note: ComponentStatus is deprecated in K8s 1.19+ but still works on most clusters
+        including minikube. On managed clusters (AKS/EKS/GKE) the control plane
+        components are not visible this way — an empty list does not mean they are healthy.
+        """
+        unhealthy = []
+        try:
+            components = self.k8s.v1.list_component_status()
+            for cs in components.items:
+                for condition in (cs.conditions or []):
+                    if condition.type == "Healthy" and condition.status != "True":
+                        unhealthy.append(
+                            f"{cs.metadata.name}: {condition.message or condition.error or 'not healthy'}"
+                        )
+        except Exception as e:
+            # ComponentStatus may be unavailable on managed clusters — not an error
+            if "404" not in str(e) and "not found" not in str(e).lower():
+                unhealthy.append(f"ComponentStatus API unavailable: {e}")
+        return unhealthy
 
     async def predict_risk(self) -> Dict:
         """Heuristic risk score from detected issues."""
