@@ -1,15 +1,16 @@
 # Kubernetes/AKS/EKS Troubleshooting Guide
 
-**Hands-on debugging guides, incident playbooks, and engineering reference for Kubernetes operators and engineers.**
+**Hands-on debugging guides, incident playbooks, engineering reference, and provider overlays for Kubernetes operators and engineers.**
 
-This repository is a practical toolkit for Kubernetes operations, debugging, and architecture. It is designed for real incident response, production troubleshooting, and structured investigation in live clusters.
+This repository is a practical toolkit for Kubernetes operations, debugging, and architecture. It is designed for real incident response, production troubleshooting, structured investigation in live clusters, and provider-specific overlays for AKS, EKS, GKE, and bare metal.
 
 ---
 
 ## 📖 Table of Contents
 - [Prerequisites & Setup](#-prerequisites--setup)
 - [How to Use This Guide](#how-to-use-this-guide)
-- [🏫 AKS Course Track](#-aks-course-track)
+- [🏫 Course Track](#-course-track)
+- [☁️ Provider Overlays](#-provider-overlays)
 - [🧪 Live Cluster Debugging (Start Here)](#-live-cluster-debugging-start-here)
 - [🎓 Engineering Depth](#-engineering-depth)
 - [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
@@ -43,7 +44,7 @@ Ensure you have the standard K8s toolchain:
 
 ## How to Use This Guide
 
-- **For an AKS course or workshop**: Start with [course/README.md](./course/README.md) for the syllabus, module order, and instructor notes.
+- **For a course or workshop**: Start with [course/README.md](./course/README.md) for the syllabus, module order, and instructor notes.
 - **For live cluster debugging**: Open [DEBUG-RUNBOOK.md](./DEBUG-RUNBOOK.md) — symptom ToC and fix commands in one file.
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
 - **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
@@ -51,11 +52,11 @@ Ensure you have the standard K8s toolchain:
 
 ---
 
-## 🏫 AKS Course Track
+## 🏫 Course Track
 
-Use this path when the repo is being taught as a structured AKS course rather than used as a reference library:
+Use this path when the repo is being taught as a structured Kubernetes course with provider-specific overlays rather than used as a reference library:
 
-1. 👉 **[AKS Course Track](./course/README.md)**  
+1. 👉 **[Kubernetes Provider Course Track](./course/README.md)**  
    *Audience, course sequence, delivery options, and lab backbone.*
 2. **[Course Syllabus](./course/00-syllabus.md)**  
    *Learning outcomes, prerequisites, module map, and assessments.*
@@ -63,6 +64,30 @@ Use this path when the repo is being taught as a structured AKS course rather th
    *Broken-manifest labs used throughout the course.*
 4. **[Instructor Guide](./course/INSTRUCTOR-GUIDE.md)**  
    *Pacing, lab mapping, and facilitation notes.*
+
+---
+
+## ☁️ Provider Overlays
+
+Use the shared Kubernetes debugging core first, then branch into the provider overlay that matches the environment:
+
+- **AKS**
+  [AKS Debugging Framework](./docs/AKS-DEBUGGING-FRAMEWORK.md),
+  [AKS Networking](./docs/azure/aks-networking.md),
+  [Azure Observability](./docs/azure/azure-observability.md)
+- **EKS**
+  [EKS Debugging Framework](./docs/EKS-DEBUGGING-FRAMEWORK.md),
+  [EKS Networking](./docs/aws/eks-networking.md),
+  [AWS Observability](./docs/aws/aws-observability.md)
+- **GKE**
+  [GKE Debugging Framework](./docs/GKE-DEBUGGING-FRAMEWORK.md),
+  [GKE Networking](./docs/gcp/gke-networking.md),
+  [GCP Observability](./docs/gcp/gcp-observability.md)
+- **Bare Metal / On-Prem**
+  [Bare Metal Debugging Framework](./docs/BAREMETAL-DEBUGGING-FRAMEWORK.md),
+  [Bare Metal Networking](./docs/baremetal/baremetal-networking.md),
+  [Bare Metal Observability](./docs/baremetal/baremetal-observability.md),
+  [On-Prem Kubernetes](./docs/on-prem-kubernetes.md)
 
 ---
 
@@ -118,14 +143,26 @@ The repository is organized by function and role:
 ```text
 .
 ├── DEBUG-RUNBOOK.md                 # <--- ACTIVE DEBUGGING: Symptom ToC + fix commands
-├── course/                          # AKS course track: syllabus, modules, capstone
+├── course/                          # Course track: shared core + provider overlays
 ├── docs/
-│   ├── AKS-DEBUGGING-FRAMEWORK.md  # <--- START HERE: 5-layer model + decision tree
+│   ├── AKS-DEBUGGING-FRAMEWORK.md   # AKS provider overlay
+│   ├── EKS-DEBUGGING-FRAMEWORK.md   # EKS provider overlay
+│   ├── GKE-DEBUGGING-FRAMEWORK.md   # GKE provider overlay
+│   ├── BAREMETAL-DEBUGGING-FRAMEWORK.md # Bare metal provider overlay
 │   ├── LIVE-DEBUG-WORKFLOW.md       # Investigation workflow + safe change strategy
 │   ├── ENGINEERING-DEPTH.md         # Staff-level systems thinking + production scenarios
+│   ├── aws/
+│   │   ├── eks-networking.md        # VPC CNI, NLB/ALB, SGs, NACLs, NAT, ECR
+│   │   └── aws-observability.md     # CloudWatch, target health, VPC Flow Logs, CloudTrail
+│   ├── gcp/
+│   │   ├── gke-networking.md        # VPC-native, firewall, NEG, Cloud NAT, Artifact Registry
+│   │   └── gcp-observability.md     # Cloud Logging, Monitoring, Flow Logs, Audit Logs
+│   ├── baremetal/
+│   │   ├── baremetal-networking.md  # MetalLB, VIPs, BGP, MTU, routing
+│   │   └── baremetal-observability.md # Prometheus, Loki, journald, switch and host signals
 │   ├── azure/
 │   │   ├── aks-networking.md        # NSG, Azure CNI, Load Balancer, UDR, Private clusters
-│   │   └── azure-observability.md  # Container Insights, Log Analytics KQL, Azure Monitor
+│   │   └── azure-observability.md   # Container Insights, Log Analytics KQL, Azure Monitor
 │   ├── on-prem-kubernetes.md        # Bare Metal / DIY K8s Guide
 │   ├── network-controllers-...md    # CNI (Calico/Cilium) & Ingress Debugging
 │   ├── security-control-...md       # SCF, OPA/Kyverno & Runtime Security
@@ -146,13 +183,14 @@ The repository is organized by function and role:
 
 ## 🛠️ Deep Dive Guides
 
-### 0. AKS-Specific Layers
+### 0. Provider-Specific Layers
 
-Azure infrastructure is the outer shell around the cluster. When `kubectl` is clean but the failure persists, investigate here.
+Use the shared Kubernetes debugging core first, then branch into the provider overlay that matches the environment.
 
-- [**AKS Debugging Framework**](./docs/AKS-DEBUGGING-FRAMEWORK.md) — 5-layer model, decision tree, golden debug flow, when to escalate to Azure Support.
-- [**AKS Networking**](./docs/azure/aks-networking.md) — Azure CNI vs Kubenet, NSG rules, Azure Load Balancer health probes, UDR routing, private clusters, Azure DNS.
-- [**Azure Observability**](./docs/azure/azure-observability.md) — Container Insights, Log Analytics KQL queries, Azure Monitor alerts, App Insights distributed tracing, Prometheus/Grafana.
+- [**AKS**](./docs/AKS-DEBUGGING-FRAMEWORK.md) — Azure CNI, NSG, Azure Load Balancer, ACR, Azure Monitor.
+- [**EKS**](./docs/EKS-DEBUGGING-FRAMEWORK.md) — VPC CNI, security groups, NLB/ALB, ECR, CloudWatch.
+- [**GKE**](./docs/GKE-DEBUGGING-FRAMEWORK.md) — VPC-native networking, firewall rules, backend services, Artifact Registry, Cloud Monitoring.
+- [**Bare Metal**](./docs/BAREMETAL-DEBUGGING-FRAMEWORK.md) — MetalLB, BGP, VIPs, MTU, storage backends, physical infrastructure.
 
 ### 1. On-Prem / Bare Metal
 Running K8s without AWS/Azure? "You are the Cloud Provider."

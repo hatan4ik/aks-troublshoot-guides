@@ -1,6 +1,6 @@
-# AKS Course Track
+# Kubernetes Provider Course Track
 
-This folder turns the repository into a teachable AKS course without changing the underlying reference layout.
+This folder turns the repository into a teachable Kubernetes course with provider overlays, without changing the underlying reference layout.
 
 Use it in one of two ways:
 
@@ -12,13 +12,13 @@ Use it in one of two ways:
 - Platform engineers
 - SREs
 - DevOps engineers
-- Software engineers who operate workloads on AKS
+- Software engineers who operate workloads on AKS, EKS, GKE, or on-prem clusters
 
 ## What Students Should Leave With
 
-- A repeatable debugging workflow for AKS and Kubernetes
+- A repeatable debugging workflow for Kubernetes across cloud and non-cloud environments
 - Confidence reading events, pod state, services, ingress, DNS, and node health
-- Clear separation between Kubernetes failures and Azure infrastructure failures
+- Clear separation between Kubernetes failures and provider infrastructure failures
 - Practical experience fixing broken manifests and validating recovery
 
 ## Course Sequence
@@ -28,13 +28,21 @@ Use it in one of two ways:
 3. [02-pod-lifecycle.md](./02-pod-lifecycle.md)
 4. [03-service-networking.md](./03-service-networking.md)
 5. [04-scheduling-storage.md](./04-scheduling-storage.md)
-6. [05-aks-platform.md](./05-aks-platform.md)
-7. [06-capstone.md](./06-capstone.md)
-8. [INSTRUCTOR-GUIDE.md](./INSTRUCTOR-GUIDE.md)
+6. [05-provider-overlays.md](./05-provider-overlays.md)
+7. Choose one or compare several:
+   [05-aks-platform.md](./05-aks-platform.md),
+   [05-eks-platform.md](./05-eks-platform.md),
+   [05-gke-platform.md](./05-gke-platform.md),
+   [05-baremetal-platform.md](./05-baremetal-platform.md)
+8. [06-capstone.md](./06-capstone.md)
+9. [INSTRUCTOR-GUIDE.md](./INSTRUCTOR-GUIDE.md)
 
 ## Core Repo References
 
 - [AKS Debugging Framework](../docs/AKS-DEBUGGING-FRAMEWORK.md)
+- [EKS Debugging Framework](../docs/EKS-DEBUGGING-FRAMEWORK.md)
+- [GKE Debugging Framework](../docs/GKE-DEBUGGING-FRAMEWORK.md)
+- [Bare Metal Debugging Framework](../docs/BAREMETAL-DEBUGGING-FRAMEWORK.md)
 - [Live Debug Runbook](../DEBUG-RUNBOOK.md)
 - [Live Debugging Workflow](../docs/LIVE-DEBUG-WORKFLOW.md)
 - [Engineering Depth](../docs/ENGINEERING-DEPTH.md)
@@ -57,12 +65,12 @@ The course relies on `practice/` as the main lab system:
 - Day 2: pod lifecycle and runtime failures
 - Day 3: networking, DNS, ingress, and traffic flow
 - Day 4: scheduling, storage, and stateful systems
-- Day 5: AKS overlays, observability, and capstone
+- Day 5: provider overlays, observability, and capstone
 
 ### 2-Day Intensive
 
 - Day 1: foundations, pod lifecycle, and networking
-- Day 2: AKS platform overlays and capstone
+- Day 2: provider overlays and capstone
 
 ## Rule For Students
 

@@ -8,7 +8,7 @@ Students should learn:
 
 - a stable investigation order
 - how to prove a root cause
-- how to avoid jumping to Azure too early
+- how to avoid jumping to provider infrastructure too early
 
 ## Recommended Teaching Pattern
 
@@ -18,7 +18,7 @@ For each module:
 2. Demo one scenario live
 3. Put students into labs with symptoms only
 4. Review the evidence they used
-5. Close with a short AKS-specific overlay
+5. Close with a short provider-specific overlay
 
 ## Timing Guide
 
@@ -30,14 +30,14 @@ For each module:
 | 2 | Pod lifecycle | 45m | 90m | 30m |
 | 3 | Networking | 45m | 90m | 30m |
 | 4 | Scheduling and storage | 45m | 90m | 30m |
-| 5 | AKS platform + capstone | 60m | 120m | 30m |
+| 5 | Provider overlay + capstone | 60m | 120m | 30m |
 
 ### 2-Day Intensive
 
 | Day | Focus |
 | --- | --- |
 | 1 | Foundations, pod lifecycle, networking |
-| 2 | Scheduling, AKS platform, capstone |
+| 2 | Scheduling, provider overlay, capstone |
 
 ## Lab Facilitation Rules
 
@@ -54,7 +54,7 @@ For each module:
 | Pod lifecycle | 05, 07, 14, 15, 16, 17 |
 | Networking | 02, 03, 10, 11 |
 | Scheduling and storage | 06, 08, 09, 13, 18 |
-| Capstone | Mix 02, 07, 10, 13 or an AKS case study |
+| Capstone | Mix 02, 07, 10, 13 or a provider-specific case study |
 
 ## Instructor-Only References
 
@@ -67,5 +67,5 @@ For each module:
 - Empty endpoints means selector or readiness, not DNS
 - Timeout and refusal are different failure classes
 - Probe bugs often look like app bugs
-- Many AKS incidents are still fixable with pure `kubectl`
-- Azure escalation starts only after Kubernetes evidence is clean
+- Many provider incidents are still fixable with pure `kubectl`
+- Provider escalation starts only after Kubernetes evidence is clean
