@@ -9,6 +9,7 @@ This repository is a practical toolkit for Kubernetes operations, debugging, and
 ## 📖 Table of Contents
 - [Prerequisites & Setup](#-prerequisites--setup)
 - [How to Use This Guide](#how-to-use-this-guide)
+- [🏫 AKS Course Track](#-aks-course-track)
 - [🧪 Live Cluster Debugging (Start Here)](#-live-cluster-debugging-start-here)
 - [🎓 Engineering Depth](#-engineering-depth)
 - [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
@@ -42,10 +43,26 @@ Ensure you have the standard K8s toolchain:
 
 ## How to Use This Guide
 
+- **For an AKS course or workshop**: Start with [course/README.md](./course/README.md) for the syllabus, module order, and instructor notes.
 - **For live cluster debugging**: Open [DEBUG-RUNBOOK.md](./DEBUG-RUNBOOK.md) — symptom ToC and fix commands in one file.
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
 - **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
+
+---
+
+## 🏫 AKS Course Track
+
+Use this path when the repo is being taught as a structured AKS course rather than used as a reference library:
+
+1. 👉 **[AKS Course Track](./course/README.md)**  
+   *Audience, course sequence, delivery options, and lab backbone.*
+2. **[Course Syllabus](./course/00-syllabus.md)**  
+   *Learning outcomes, prerequisites, module map, and assessments.*
+3. **[Hands-On Practice](./practice/README.md)**  
+   *Broken-manifest labs used throughout the course.*
+4. **[Instructor Guide](./course/INSTRUCTOR-GUIDE.md)**  
+   *Pacing, lab mapping, and facilitation notes.*
 
 ---
 
@@ -101,6 +118,7 @@ The repository is organized by function and role:
 ```text
 .
 ├── DEBUG-RUNBOOK.md                 # <--- ACTIVE DEBUGGING: Symptom ToC + fix commands
+├── course/                          # AKS course track: syllabus, modules, capstone
 ├── docs/
 │   ├── AKS-DEBUGGING-FRAMEWORK.md  # <--- START HERE: 5-layer model + decision tree
 │   ├── LIVE-DEBUG-WORKFLOW.md       # Investigation workflow + safe change strategy
