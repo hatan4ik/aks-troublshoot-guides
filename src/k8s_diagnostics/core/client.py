@@ -1,22 +1,57 @@
 from kubernetes import client, config
+from kubernetes.config.config_exception import ConfigException
 from typing import Dict, List, Optional
 import json
 
 class K8sClient:
     def __init__(self):
-        try:
-            config.load_incluster_config()
-        except:
-            config.load_kube_config()
-        
-        self.v1 = client.CoreV1Api()
-        self.apps_v1 = client.AppsV1Api()
-        self.metrics = client.CustomObjectsApi()
+        self.config_error: Optional[str] = None
+        self.v1 = None
+        self.apps_v1 = None
+        self.metrics = None
         # Fixer is injected later to break cycles
         self.fixer = None
 
+        try:
+            config.load_incluster_config()
+        except ConfigException:
+            try:
+                config.load_kube_config()
+            except ConfigException as exc:
+                self.config_error = str(exc)
+                return
+
+        self.v1 = client.CoreV1Api()
+        self.apps_v1 = client.AppsV1Api()
+        self.metrics = client.CustomObjectsApi()
+
+    @property
+    def available(self) -> bool:
+        return self.v1 is not None and self.apps_v1 is not None and self.metrics is not None
+
+    def is_ready(self, request_timeout: int = 2) -> bool:
+        if not self.available:
+            return False
+
+        try:
+            self.v1.list_namespace(limit=1, _request_timeout=request_timeout)
+            return True
+        except Exception:
+            return False
+
     def get_cluster_health(self) -> Dict:
         """Get comprehensive cluster health status"""
+        if not self.available:
+            return {
+                "status": "degraded",
+                "kubernetes_available": False,
+                "error": self.config_error or "Kubernetes configuration not available",
+                "nodes": {},
+                "pods": {},
+                "services": {},
+                "events": [],
+            }
+
         health = {
             "nodes": self._check_nodes(),
             "pods": self._check_pods(),

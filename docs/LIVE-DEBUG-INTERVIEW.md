@@ -1,6 +1,8 @@
 # Live Kubernetes Debugging Interview Guide
 
-This guide is for the interview format where you are dropped into an existing cluster, asked to diagnose why an application is failing, and expected to make a targeted fix.
+> **During the interview:** use [INTERVIEW.md](../INTERVIEW.md) at the repo root — it is a single-file cheat sheet with a symptom-based ToC and copy-paste fix commands. Stay in that file during the interview.
+>
+> **This file** is for preparation: understanding the investigation workflow, what to avoid, and how to verify fixes.
 
 Use this guide as your operational path. Use [INTERVIEW-PREP.md](./INTERVIEW-PREP.md) for deeper theory and architecture follow-up questions.
 

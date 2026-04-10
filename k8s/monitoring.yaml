@@ -20,7 +20,7 @@ data:
       timeout_seconds: 30
     monitoring:
       metrics_enabled: true
-      metrics_port: 9090
+      metrics_port: 8000
       health_check_interval: 30
     logging:
       level: "INFO"
@@ -30,7 +30,7 @@ data:
       critical_threshold: 5
       warning_threshold: 3
 ---
-apiVersion: v1
+apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: k8s-diagnostics-api
@@ -43,7 +43,7 @@ spec:
     matchLabels:
       app: k8s-diagnostics-api
   endpoints:
-  - port: metrics
+  - port: http
     interval: 30s
     path: /metrics
 ---
