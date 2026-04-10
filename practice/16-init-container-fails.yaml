@@ -1,0 +1,43 @@
+# Scenario 16: Init Container Failing — Main Container Never Starts
+# The pod is stuck in Init:CrashLoopBackOff or Init:Error.
+# The main container never starts.
+# kubectl get pods shows: STATUS = Init:0/1
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-16
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-16
+  template:
+    metadata:
+      labels:
+        app: scenario-16
+    spec:
+      initContainers:
+      - name: wait-for-db
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Checking database connectivity..."
+          nc -z postgres-service 5432    # BUG is somewhere in this file — service does not exist
+          echo "Database is ready."
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi

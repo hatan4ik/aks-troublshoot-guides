@@ -1,13 +1,14 @@
 # Kubernetes/AKS/EKS Troubleshooting Guide  
-**Zero-to-Hero with Automation for Architects, Engineers, DevOps, SREs, and Technical Writers.**
+**Hands-on debugging guides, incident playbooks, and interview prep for Kubernetes operators and engineers.**
 
-This repository is a comprehensive toolkit and study guide for mastering Kubernetes operations, debugging, and architecture. It is designed to help you pass **FAANG/MANGA** interviews and survive P0 incidents in production.
+This repository is a practical toolkit for Kubernetes operations, debugging, and architecture. It is designed for real incident response, interview preparation, and structured troubleshooting in live clusters.
 
 ---
 
 ## 📖 Table of Contents
 - [Prerequisites & Setup](#-prerequisites--setup)
 - [How to Use This Guide](#how-to-use-this-guide)
+- [🧪 Live Debugging Interview (Start Here)](#-live-debugging-interview-start-here)
 - [🎓 **FAANG Interview Prep (Start Here)**](#-faang-interview-prep-start-here)
 - [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
 - [🗺️ Repository Map](#-repository-map)
@@ -23,8 +24,9 @@ This repository is a comprehensive toolkit and study guide for mastering Kuberne
 ## 📦 Prerequisites & Setup
 Before using the advanced features of this guide, ensure you have the necessary tooling installed.
 
-### 1. Install the Gemini CLI
-This project leverages the Gemini CLI for AI-assisted debugging and analysis.
+### 1. Optional AI Tooling
+AI-assisted tooling is optional. Nothing in this repository requires it for normal use or for a live Kubernetes debugging interview.
+
 ```bash
 npm install -g @google/gemini-cli
 ```
@@ -38,9 +40,24 @@ Ensure you have the standard K8s toolchain:
 ---
 
 ## How to Use This Guide
+- **For a live debugging interview**: Start with the [Live Debugging Interview Guide](./docs/LIVE-DEBUG-INTERVIEW.md). It is optimized for the "here is a broken cluster, diagnose and fix it" format.
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
 - **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
+
+---
+
+## 🧪 Live Debugging Interview (Start Here)
+If the interview format is: "here is a running Kubernetes cluster, find why the app is failing and fix it," use this repo in this order:
+
+1. 👉 **[Live Kubernetes Debugging Interview Guide](./docs/LIVE-DEBUG-INTERVIEW.md)**  
+   *Covers: safe triage order, read-only first commands, symptom-to-root-cause mapping, safe fixes, and verification.*
+2. **[Common Kubernetes Issues Playbook](./playbooks/common-issues.md)**  
+   *Covers: pending pods, crash loops, image pulls, DNS, storage, RBAC, and network policy failures.*
+3. **[Pod Startup Issues](./docs/engineers/pod-startup-issues.md)**  
+   *Covers: scheduling, init container failures, image pulls, and startup misconfigurations.*
+4. **[Advanced Debugging Techniques](./docs/engineers/debugging-techniques.md)**  
+   *Covers: `kubectl debug`, empty logs, exit codes, probes, and deeper runtime troubleshooting.*
 
 ---
 

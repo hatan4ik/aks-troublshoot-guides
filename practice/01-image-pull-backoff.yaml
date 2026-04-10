@@ -1,0 +1,43 @@
+# Scenario 1: ImagePullBackOff
+# The application pod fails to start.
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-01
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-01
+  template:
+    metadata:
+      labels:
+        app: scenario-01
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.99.99        # BUG is somewhere in this file
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-01
+  namespace: practice
+spec:
+  selector:
+    app: scenario-01
+  ports:
+  - port: 80
+    targetPort: 80

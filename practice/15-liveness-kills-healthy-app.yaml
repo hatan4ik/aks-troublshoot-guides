@@ -1,0 +1,48 @@
+# Scenario 15: Liveness Probe Too Aggressive — Kills a Healthy App
+# The app is working fine, but the pod keeps restarting every ~30 seconds.
+# kubectl describe pod shows "Liveness probe failed" in events.
+# The app takes 20 seconds to become ready on startup — liveness fires before that.
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-15
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-15
+  template:
+    metadata:
+      labels:
+        app: scenario-15
+    spec:
+      containers:
+      - name: slow-start-app
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Starting up, takes 20 seconds..."
+          sleep 20
+          echo "Ready. Starting HTTP server."
+          httpd -f -p 8080 -h /var/www
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 5    # BUG is somewhere in this file — fires before app is ready
+          periodSeconds: 5
+          failureThreshold: 2
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi

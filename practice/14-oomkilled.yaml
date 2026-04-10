@@ -1,0 +1,39 @@
+# Scenario 14: OOMKilled — Memory Limit Too Low
+# The pod starts but is immediately killed by the kernel's OOM killer.
+# Exit code will be 137 (SIGKILL).
+# kubectl describe pod shows: OOMKilled: true
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-14
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-14
+  template:
+    metadata:
+      labels:
+        app: scenario-14
+    spec:
+      containers:
+      - name: memory-hog
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Allocating memory..."
+          dd if=/dev/zero of=/tmp/bigfile bs=1M count=200
+          echo "Done, sleeping"
+          sleep 3600
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 32Mi    # BUG is somewhere in this file — limit is far too low for the workload

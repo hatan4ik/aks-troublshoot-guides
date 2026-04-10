@@ -1,0 +1,78 @@
+# Scenario 11: Ingress Points to Wrong Backend Service
+# The pod is Running and Ready. The service exists.
+# But hitting the Ingress URL returns 503 Service Unavailable.
+#
+# REQUIRES: An Ingress controller running in the cluster.
+#   kind:    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+#   minikube: minikube addons enable ingress
+#
+# Test with:
+#   curl http://localhost/scenario-11   (kind with port-forward or NodePort)
+#
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-11
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-11
+  template:
+    metadata:
+      labels:
+        app: scenario-11
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-11-svc
+  namespace: practice
+spec:
+  selector:
+    app: scenario-11
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: scenario-11
+  namespace: practice
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /scenario-11
+        pathType: Prefix
+        backend:
+          service:
+            name: scenario-11-backend    # BUG is somewhere in this file
+            port:
+              number: 80

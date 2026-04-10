@@ -1,0 +1,70 @@
+# Scenario 10: NetworkPolicy Blocks All Ingress Traffic
+# The pod is Running and Ready. The service has endpoints.
+# But curl from another pod gets "connection timed out".
+#
+# NOTE: Requires a CNI that enforces NetworkPolicy (Calico, Cilium, kindnet with NetworkPolicy).
+# In kind: create cluster with --config pointing to a config that enables NetworkPolicy.
+#
+# Test connectivity before and after:
+#   kubectl run test --image=busybox --rm -it --restart=Never -n practice -- wget -qO- http://scenario-10
+#
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-10
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-10
+  template:
+    metadata:
+      labels:
+        app: scenario-10
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-10
+  namespace: practice
+spec:
+  selector:
+    app: scenario-10
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scenario-10-deny-all      # BUG is somewhere in this file
+  namespace: practice
+spec:
+  podSelector:
+    matchLabels:
+      app: scenario-10
+  policyTypes:
+  - Ingress
+  # No ingress rules = deny all inbound traffic

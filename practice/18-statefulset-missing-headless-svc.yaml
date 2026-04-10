@@ -1,0 +1,53 @@
+# Scenario 18: StatefulSet — Missing Headless Service
+# StatefulSet pods stay Pending or fail DNS lookups between pods.
+# StatefulSets require a headless Service (clusterIP: None) for stable DNS names.
+# Without it, pods cannot discover each other by hostname.
+# In this scenario, the headless Service is absent — the StatefulSet references it
+# via serviceName but it does not exist.
+# Diagnose why and fix it.
+---
+# BUG is somewhere in this file — the required headless service is missing.
+# The StatefulSet references serviceName: scenario-18-headless
+# but that Service is not defined.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: scenario-18
+  namespace: practice
+spec:
+  serviceName: scenario-18-headless    # This service must exist as a headless service
+  replicas: 2
+  selector:
+    matchLabels:
+      app: scenario-18
+  template:
+    metadata:
+      labels:
+        app: scenario-18
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+          name: web
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+# Regular ClusterIP service for external access (this one exists — but the headless one is missing)
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-18
+  namespace: practice
+spec:
+  selector:
+    app: scenario-18
+  ports:
+  - port: 80
+    targetPort: 80

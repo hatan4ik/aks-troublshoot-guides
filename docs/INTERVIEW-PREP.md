@@ -2,6 +2,8 @@
 
 This guide is designed to transform you from a Kubernetes *user* to a Kubernetes *expert*. Top-tier tech companies (Google, Meta, Amazon, Netflix, Apple) don't just ask "how to deploy an app"; they ask "how it works," "how it breaks," and "how to fix it at scale."
 
+If your interview is a live troubleshooting exercise in an existing cluster, start with [LIVE-DEBUG-INTERVIEW.md](./LIVE-DEBUG-INTERVIEW.md). This guide is better suited for theory depth, systems thinking, and follow-up discussion after you have already diagnosed the immediate failure.
+
 ---
 
 ## 🧠 The Mindset Shift

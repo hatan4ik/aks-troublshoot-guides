@@ -1,0 +1,51 @@
+# Scenario 3: Service Selector Mismatch
+# The pod is Running. The service exists.
+# kubectl get endpoints shows <none>.
+# Traffic never reaches the pod.
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-03
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-03
+  template:
+    metadata:
+      labels:
+        app: scenario-03
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-03
+  namespace: practice
+spec:
+  selector:
+    app: scenario-3           # BUG is somewhere in this file
+  ports:
+  - port: 80
+    targetPort: 80

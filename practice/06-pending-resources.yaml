@@ -1,0 +1,44 @@
+# Scenario 6: Unschedulable Pod (Resource Requests Too High)
+# The pod stays in Pending indefinitely.
+# No node in the cluster can satisfy the request.
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-06
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-06
+  template:
+    metadata:
+      labels:
+        app: scenario-06
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "96"             # BUG is somewhere in this file
+            memory: 512Mi
+          limits:
+            cpu: "96"
+            memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-06
+  namespace: practice
+spec:
+  selector:
+    app: scenario-06
+  ports:
+  - port: 80
+    targetPort: 80

@@ -1,0 +1,55 @@
+# Scenario 13: PVC Requests a Non-Existent StorageClass
+# The pod stays Pending because the PVC can never bind.
+# kubectl get pvc shows STATUS=Pending.
+# Diagnose why and fix it.
+#
+# To see available StorageClasses in your cluster:
+#   kubectl get storageclass
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scenario-13-data
+  namespace: practice
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: ultra-fast-nvme    # BUG is somewhere in this file
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-13
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-13
+  template:
+    metadata:
+      labels:
+        app: scenario-13
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: scenario-13-data

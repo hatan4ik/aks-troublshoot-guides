@@ -1,0 +1,44 @@
+# Scenario 8: Taint Without Toleration
+# The pod stays Pending even though the cluster has nodes with free capacity.
+#
+# SETUP REQUIRED — run this before applying the manifest:
+#   kubectl taint nodes --all dedicated=gpu:NoSchedule
+#
+# CLEANUP AFTER — remove the taint when done:
+#   kubectl taint nodes --all dedicated=gpu:NoSchedule-
+#
+# Diagnose why the pod is Pending and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-08
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-08
+  template:
+    metadata:
+      labels:
+        app: scenario-08
+    spec:
+      # BUG is somewhere in this file
+      # tolerations:
+      # - key: "dedicated"
+      #   operator: "Equal"
+      #   value: "gpu"
+      #   effect: "NoSchedule"
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi

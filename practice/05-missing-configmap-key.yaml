@@ -1,0 +1,46 @@
+# Scenario 5: Missing ConfigMap Key
+# The pod fails immediately after scheduling.
+# kubectl describe pod shows CreateContainerConfigError.
+# Diagnose why and fix it.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scenario-05-config
+  namespace: practice
+data:
+  DB_URL: "postgres://db:5432/myapp"   # BUG is somewhere in this file
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-05
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-05
+  template:
+    metadata:
+      labels:
+        app: scenario-05
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: scenario-05-config
+              key: DATABASE_URL
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi

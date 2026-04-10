@@ -1,0 +1,51 @@
+# Scenario 4: Failing Readiness Probe
+# The pod starts and the container runs, but the pod is always 0/1 READY.
+# It is never added to the service endpoints.
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-04
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-04
+  template:
+    metadata:
+      labels:
+        app: scenario-04
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        ports:
+        - containerPort: 80
+        readinessProbe:
+          httpGet:
+            path: /healthz        # BUG is somewhere in this file
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scenario-04
+  namespace: practice
+spec:
+  selector:
+    app: scenario-04
+  ports:
+  - port: 80
+    targetPort: 80

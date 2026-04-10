@@ -1,0 +1,33 @@
+# Scenario 7: CrashLoopBackOff — Bad Entrypoint
+# The pod starts but immediately crashes on every restart.
+# Exit code gives you a clue.
+# Diagnose why and fix it.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scenario-07
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scenario-07
+  template:
+    metadata:
+      labels:
+        app: scenario-07
+    spec:
+      containers:
+      - name: web
+        image: nginx:1.25
+        command: ["/bin/launch-app"]  # BUG is somewhere in this file
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
