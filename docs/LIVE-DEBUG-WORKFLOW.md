@@ -1,30 +1,30 @@
-# Live Kubernetes Debugging Interview Guide
+# Live Kubernetes Debugging Workflow
 
-> **During the interview:** use [INTERVIEW.md](../INTERVIEW.md) at the repo root — it is a single-file cheat sheet with a symptom-based ToC and copy-paste fix commands. Stay in that file during the interview.
+> **Active debugging:** use [DEBUG-RUNBOOK.md](../DEBUG-RUNBOOK.md) at the repo root — symptom-based ToC, copy-paste fix commands, one file.
 >
-> **This file** is for preparation: understanding the investigation workflow, what to avoid, and how to verify fixes.
+> **This file** covers the investigation workflow: how to think through a failure, what to avoid, and how to verify fixes.
 
-Use this guide as your operational path. Use [INTERVIEW-PREP.md](./INTERVIEW-PREP.md) for deeper theory and architecture follow-up questions.
+Use this guide as your operational path. Use [ENGINEERING-DEPTH.md](./ENGINEERING-DEPTH.md) for deeper theory and architecture questions.
 
 ## Goal
 
-Show that you can:
+Demonstrate that you can:
 - Triage quickly without guessing.
 - Narrow the blast radius before changing anything.
 - Explain your reasoning while you inspect the cluster.
 - Make the smallest safe fix.
 - Verify that the application is actually healthy after the change.
 
-## How To Use This Repo For That Interview
+## How To Use This Repo
 
 Use the repo in this order:
 
-1. Read this guide once before the interview and practice the command flow.
+1. Read this guide once and practice the command flow on a local cluster.
 2. Use [playbooks/common-issues.md](../playbooks/common-issues.md) as a symptom-to-cause reference.
-3. Use [docs/engineers/pod-startup-issues.md](./engineers/pod-startup-issues.md) and [docs/engineers/debugging-techniques.md](./engineers/debugging-techniques.md) when the issue is clearly in pod startup, probes, config, or runtime behavior.
-4. Use scripts in `scripts/diagnostics/` as command inspiration, not as your first move in the interview.
+3. Use [docs/engineers/pod-startup-issues.md](./engineers/pod-startup-issues.md) and [docs/engineers/debugging-techniques.md](./engineers/debugging-techniques.md) when the issue is in pod startup, probes, config, or runtime behaviour.
+4. Use scripts in `scripts/diagnostics/` as command inspiration — not as your first move on a live cluster.
 
-## Interview-Safe Workflow
+## Safe Debugging Workflow
 
 ### 1. Establish Scope
 
@@ -64,8 +64,6 @@ Keep the investigation ordered:
 
 #### `Pending`
 
-Check:
-
 ```bash
 kubectl describe pod <pod> -n <namespace>
 kubectl get nodes
@@ -80,8 +78,6 @@ Common causes:
 - Unbound PVCs.
 
 #### `CrashLoopBackOff` or `Error`
-
-Check:
 
 ```bash
 kubectl logs <pod> -n <namespace> --previous
@@ -98,8 +94,6 @@ Common causes:
 
 #### `ImagePullBackOff` or `ErrImagePull`
 
-Check:
-
 ```bash
 kubectl describe pod <pod> -n <namespace>
 ```
@@ -112,8 +106,6 @@ Common causes:
 
 #### Pod Is Running But App Still Fails
 
-Check:
-
 ```bash
 kubectl get pod <pod> -n <namespace> -o wide
 kubectl get svc -n <namespace>
@@ -124,15 +116,14 @@ kubectl get networkpolicy -A
 ```
 
 Common causes:
-- Readiness probe failing, so the pod never enters service endpoints.
+
+- Readiness probe failing — pod never enters service endpoints.
 - Service selector does not match pod labels.
 - Wrong target port or container port.
 - Ingress points to the wrong service or port.
 - NetworkPolicy blocks traffic.
 
 #### DNS Or Service Discovery Issue
-
-Check:
 
 ```bash
 kubectl get pods -n kube-system
@@ -141,18 +132,16 @@ kubectl get endpoints -A
 kubectl logs -n kube-system -l k8s-app=kube-dns --tail=50
 ```
 
-Use `kubectl exec` or `kubectl debug` only if needed and only after you have already narrowed the issue:
+Use `kubectl exec` or `kubectl debug` only after narrowing the issue, and only when you can explain why interactive shell access is necessary:
 
 ```bash
 kubectl exec -it <pod> -n <namespace> -- sh
 kubectl debug -it <pod> -n <namespace> --target=<container> --image=busybox -- sh
 ```
 
-In an interview, it is better to say why you need an interactive shell than to jump straight into it.
+## High-Value Fix Areas
 
-## High-Value Fixes To Be Ready For
-
-These are the most likely issues in a practical interview:
+The most common root causes in a live broken cluster:
 - Wrong image tag or image name.
 - Wrong port in `containerPort`, `targetPort`, probe, or Ingress backend.
 - Missing or malformed environment variable.
@@ -164,7 +153,7 @@ These are the most likely issues in a practical interview:
 
 ## Safe Change Strategy
 
-Before you patch anything:
+Before patching anything:
 - State the current symptom.
 - State the single root cause you believe is most likely.
 - State the exact change you are about to make.
@@ -177,7 +166,7 @@ kubectl patch deployment <deployment> -n <namespace> ...
 kubectl set image deployment/<deployment> <container>=<image> -n <namespace>
 ```
 
-Avoid broad or destructive actions unless the interviewer asks for them.
+Avoid broad or destructive actions until you are certain of the root cause.
 
 ## Verification Checklist
 
@@ -197,25 +186,25 @@ Confirm all of these:
 - Service endpoints are populated.
 - The user-facing symptom is gone.
 
-## What To Avoid During The Interview
+## What To Avoid On A Live Cluster
 
 - Do not start with mutation scripts from `scripts/fixes/`.
 - Do not create test resources unless you can explain why they are necessary.
-- Do not assume it is an AKS-specific problem unless the evidence points there.
-- Do not say "I would just restart it" before you know why it failed.
-- Do not rely on optional tooling like Gemini CLI.
+- Do not assume it is a cloud-provider problem unless the evidence points there.
+- Do not restart before understanding why it failed.
+- Do not rely on optional tooling not available in the environment.
 
-## Best Repo Content For This Interview
+## Key References
 
-- [docs/LIVE-DEBUG-INTERVIEW.md](./LIVE-DEBUG-INTERVIEW.md)
+- [DEBUG-RUNBOOK.md](../DEBUG-RUNBOOK.md) — active debugging reference
 - [playbooks/common-issues.md](../playbooks/common-issues.md)
 - [docs/engineers/pod-startup-issues.md](./engineers/pod-startup-issues.md)
 - [docs/engineers/debugging-techniques.md](./engineers/debugging-techniques.md)
 - [docs/emergency-response.md](./emergency-response.md)
 
-## Recommended Practice
+## Practice Scenarios
 
-Before the interview, practice on a local cluster and deliberately break:
+Use the [practice/](../practice/) folder to build a repeatable investigation loop on a local cluster. Deliberately break:
 - Image tag
 - Probe path
 - Service selector
@@ -223,4 +212,4 @@ Before the interview, practice on a local cluster and deliberately break:
 - ConfigMap key
 - Resource requests
 
-The goal is to build a repeatable investigation loop, not to memorize commands.
+The goal is muscle memory for the investigation loop, not memorising commands.

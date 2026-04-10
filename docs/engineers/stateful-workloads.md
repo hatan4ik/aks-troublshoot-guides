@@ -1,4 +1,4 @@
-# Stateful Workloads on Kubernetes (FAANG Level)
+# Stateful Workloads on Kubernetes
 
 ## The Problem
 Stateless apps are "cattle". Stateful apps (Postgres, Kafka, Cassandra, Elastic) are "pets" that require surgery when sick.
@@ -30,6 +30,7 @@ Stateless apps are "cattle". Stateful apps (Postgres, Kafka, Cassandra, Elastic)
 *   **Failover:** Operator watches for pod death and promotes a replica automatically.
 *   **Upgrades:** Operator performs rolling upgrades of the DB binary with zero downtime.
 
-## Interview Questions
+## Engineering Scenarios
+
 *   "How do you resize a production database disk on K8s without downtime?" (Answer: PVC expansion + StorageClass `allowVolumeExpansion`).
 *   "A StatefulSet pod is stuck Terminating. The volume is attached to a dead node. What do you do?" (Answer: Check volume attachment, potentially force delete pod if data safety is confirmed).

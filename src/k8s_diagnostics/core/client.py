@@ -41,24 +41,39 @@ class K8sClient:
 
     def get_cluster_health(self) -> Dict:
         """Get comprehensive cluster health status"""
-        if not self.available:
+        if not self.available or not self.is_ready():
             return {
                 "status": "degraded",
-                "kubernetes_available": False,
-                "error": self.config_error or "Kubernetes configuration not available",
+                "kubernetes_available": False if not self.available else True,
+                "error": self.config_error or "Kubernetes API is not reachable",
                 "nodes": {},
                 "pods": {},
                 "services": {},
                 "events": [],
             }
 
-        health = {
-            "nodes": self._check_nodes(),
-            "pods": self._check_pods(),
-            "services": self._check_services(),
-            "events": self._get_recent_events()
-        }
-        return health
+        try:
+            health = {
+                "status": "healthy",
+                "kubernetes_available": True,
+                "nodes": self._check_nodes(),
+                "pods": self._check_pods(),
+                "services": self._check_services(),
+                "events": self._get_recent_events()
+            }
+            if health["nodes"].get("status") != "healthy":
+                health["status"] = "degraded"
+            return health
+        except Exception as exc:
+            return {
+                "status": "degraded",
+                "kubernetes_available": False,
+                "error": str(exc),
+                "nodes": {},
+                "pods": {},
+                "services": {},
+                "events": [],
+            }
 
     def _check_nodes(self) -> Dict:
         nodes = self.v1.list_node()

@@ -141,7 +141,7 @@ Service Meshes sit *on top* of the CNI. If the CNI is broken, the Mesh won't wor
 
 ---
 
-## 8. Advanced Interview Questions (FAANG Level)
+## 8. Advanced Engineering Scenarios
 
 **Q1: Explain the difference between `kube-proxy` ipvs mode and `iptables` mode.**
 *   **A:** `iptables` is O(N) rule traversal (slow with 10k services). Updates require reloading large chunks of rules. `ipvs` uses hash tables O(1) (fast) and supports better load balancing algorithms (Least Conn).

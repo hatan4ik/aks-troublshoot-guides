@@ -1,7 +1,7 @@
 # Security Control Framework (SCF) & Troubleshooting in Kubernetes
 
 ## Overview
-In high-compliance environments (FAANG, Finance, Healthcare), security isn't just "good practice"—it's a rigid framework (NIST 800-53, SOC2, PCI-DSS, CIS Benchmarks). This guide focuses on **how to troubleshoot and debug** the components that enforce these frameworks.
+In high-compliance environments (Finance, Healthcare, regulated industries), security isn't just "good practice"—it's a rigid framework (NIST 800-53, SOC2, PCI-DSS, CIS Benchmarks). This guide focuses on **how to troubleshoot and debug** the components that enforce these frameworks.
 
 ---
 
@@ -135,7 +135,7 @@ Securing the code *before* it reaches the cluster.
 
 ---
 
-## 7. Advanced Interview Questions (FAANG Level)
+## 7. Advanced Engineering Scenarios
 
 **Q1: How do you handle a "Break Glass" scenario where OPA is broken and preventing all updates?**
 *   **A:** "Break Glass" means restoring availability ASAP.

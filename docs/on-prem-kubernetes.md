@@ -3,7 +3,7 @@
 ## Overview
 Running Kubernetes on bare metal or on-prem VMs (VMware/KVM) is a different beast than EKS/AKS. You don't have an infinite "Cloud Controller Manager" to hand you LoadBalancers and Storage. You *are* the Cloud Provider.
 
-This guide covers the specific challenges of the "Do It Yourself" (DIY) approach, often tested in FAANG interviews for Infrastructure roles.
+This guide covers the specific challenges of the "Do It Yourself" (DIY) approach common in infrastructure engineering roles.
 
 ---
 
@@ -77,7 +77,7 @@ You need a stable IP for the API Server (`https://<vip>:6443`) that floats betwe
 
 ---
 
-## 5. Interview Questions (On-Prem Focus)
+## 5. Engineering Scenarios (On-Prem Focus)
 
 **Q: "We have a 3-node Control Plane. One node's hardware fails permanently. How do you restore the cluster health?"**
 *   **A:**

@@ -1,4 +1,4 @@
-# Interview Practice: Broken Kubernetes Manifests
+# Hands-On Practice: Broken Kubernetes Manifests
 
 Apply each scenario to a local cluster (`kind` or `minikube`), diagnose the failure using only `kubectl`, and fix it. Each manifest has exactly one bug.
 

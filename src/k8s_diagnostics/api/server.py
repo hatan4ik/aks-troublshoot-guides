@@ -43,6 +43,9 @@ def _refresh_metrics() -> None:
         CLUSTER_HEALTH_SCORE.set(score)
     except Exception:
         API_UP.set(0)
+        TOTAL_NODES.set(0)
+        READY_NODES.set(0)
+        FAILED_PODS.set(0)
         CLUSTER_HEALTH_SCORE.set(0)
 
 

@@ -1,7 +1,7 @@
 # Software Engineer's Guide to Kubernetes: Building & Debugging Cloud-Native Apps
 
 ## Overview
-This guide equips Software Engineers (SEs) with the mindset, tools, and techniques to effectively build, deploy, and debug applications in a Kubernetes environment. It focuses on the developer experience, common pitfalls, and FAANG-level expectations for application reliability and performance.
+This guide equips Software Engineers (SEs) with the mindset, tools, and techniques to effectively build, deploy, and debug applications in a Kubernetes environment. It focuses on the developer experience, common pitfalls, and staff-level expectations for application reliability and performance.
 
 ---
 
@@ -14,7 +14,7 @@ This guide equips Software Engineers (SEs) with the mindset, tools, and techniqu
 - [Container Image Best Practices](#container-image-best-practices)
 - [Kubernetes-Native Testing Strategies](#kubernetes-native-testing-strategies)
 - [Stateful Workloads: Persistence for Your App](#stateful-workloads-persistence-for-your-app)
-- [FAANG Interview Questions for Software Engineers](#faang-interview-questions-for-software-engineers)
+- [Production Engineering Scenarios](#production-engineering-scenarios)
 
 ---
 
@@ -129,7 +129,7 @@ Managing databases and other stateful applications in Kubernetes.
 
 ---
 
-## FAANG Interview Questions for Software Engineers
+## Production Engineering Scenarios
 
 **Q1: Your microservice is experiencing high latency, but CPU/Memory usage is normal. How do you debug it?**
 *   **A:**

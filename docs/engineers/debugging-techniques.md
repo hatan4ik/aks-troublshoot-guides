@@ -1,7 +1,7 @@
 # Advanced Application Debugging and Performance Profiling in Kubernetes
 
 ## Overview
-This guide consolidates advanced debugging techniques and performance profiling strategies specifically tailored for applications running in Kubernetes. It goes beyond basic log inspection to address complex issues such as transient failures, memory leaks, CPU bottlenecks, and network performance, crucial for FAANG-level engineering.
+This guide consolidates advanced debugging techniques and performance profiling strategies specifically tailored for applications running in Kubernetes. It goes beyond basic log inspection to address complex issues such as transient failures, memory leaks, CPU bottlenecks, and network performance, crucial for production-grade engineering.
 
 ---
 
@@ -20,7 +20,7 @@ This guide consolidates advanced debugging techniques and performance profiling 
     - [`CrashLoopBackOff` - Beyond Empty Logs](#crashloopbackoff---beyond-empty-logs)
     - [`OOMKilled` - The Invisible Killer](#oomkilled---the-invisible-killer)
 - [Prevention: Building Observable & Resilient Applications](#prevention-building-observable--resilient-applications)
-- [FAANG Interview Scenarios: Deep Debugging](#faang-interview-scenarios-deep-debugging)
+- [Production Debugging Scenarios](#production-debugging-scenarios)
 
 ---
 
@@ -149,7 +149,7 @@ Identify and resolve performance bottlenecks without disrupting live services.
 
 ---
 
-## FAANG Interview Scenarios: Deep Debugging
+## Production Debugging Scenarios
 
 **Q1: Your application starts up, but requests to it always timeout. `kubectl logs` show `200 OK` for the requests, and `kubectl describe pod` shows the pod is `Ready`. What are your next steps?**
 *   **A:**

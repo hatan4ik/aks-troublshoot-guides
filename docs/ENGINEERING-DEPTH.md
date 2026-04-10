@@ -1,13 +1,14 @@
-# FAANG/MANGA Kubernetes Interview Preparation Guide
+# Kubernetes Engineering Depth Reference
 
-This guide is designed to transform you from a Kubernetes *user* to a Kubernetes *expert*. Top-tier tech companies (Google, Meta, Amazon, Netflix, Apple) don't just ask "how to deploy an app"; they ask "how it works," "how it breaks," and "how to fix it at scale."
+This guide is designed to transform you from a Kubernetes *user* to a Kubernetes *expert*. Staff and Principal engineers are expected to understand not just "how to deploy an app" but "how it works," "how it breaks," and "how to operate it at scale."
 
-If your interview is a live troubleshooting exercise in an existing cluster, start with [LIVE-DEBUG-INTERVIEW.md](./LIVE-DEBUG-INTERVIEW.md). This guide is better suited for theory depth, systems thinking, and follow-up discussion after you have already diagnosed the immediate failure.
+If your task is a live troubleshooting exercise in an existing cluster, start with [LIVE-DEBUG-WORKFLOW.md](./LIVE-DEBUG-WORKFLOW.md). This guide is better suited for theory depth, systems thinking, and architectural discussion after you have already diagnosed the immediate failure.
 
 ---
 
 ## 🧠 The Mindset Shift
-| Junior/Mid-Level | Staff/Principal (FAANG) |
+
+| Junior/Mid-Level | Staff/Principal |
 | :--- | :--- |
 | "I restart the pod to fix it." | "I analyze the exit code and `dmesg` to see if it was the OOMKiller or a segfault." |
 | "I use a LoadBalancer." | "I use Ingress for cost efficiency, but LoadBalancer for TCP traffic, and here is how `kube-proxy` handles the iptables rules." |

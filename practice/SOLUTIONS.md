@@ -562,7 +562,7 @@ spec:
 EOF
 ```
 
-**Key interview insight:** Jobs are immutable — you cannot patch a running or failed Job's pod template. You must delete and re-create it.
+**Key engineering note:** Jobs are immutable — you cannot patch a running or failed Job's pod template. You must delete and re-create it.
 
 ---
 

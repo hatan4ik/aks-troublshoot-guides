@@ -1,4 +1,4 @@
-# Observability at Scale (FAANG Level)
+# Observability at Scale
 
 ## The Problem
 At 5,000 nodes and 100k pods, standard monitoring breaks. Prometheus eats all RAM, ELK falls behind, and "grep" is impossible.
@@ -26,12 +26,13 @@ At 5,000 nodes and 100k pods, standard monitoring breaks. Prometheus eats all RA
     *   **Sampling:** Sample successful `200 OK` logs (keep 1%). Keep 100% of `500 Error`.
 
 ## 4. Service Level Objectives (SLOs)
-**The FAANG Standard:** Don't alert on CPU > 80%. Alert on **Burn Rate**.
+**The Production Standard:** Don't alert on CPU > 80%. Alert on **Burn Rate**.
 *   **SLI (Indicator):** Latency < 200ms.
 *   **SLO (Objective):** 99.9% of requests meet SLI over 30 days.
 *   **Error Budget:** The 0.1% failures you are allowed.
 *   **Burn Rate Alert:** "We have burned 10% of our monthly error budget in the last hour." -> Page SRE.
 
-## Interview Questions
+## Engineering Scenarios
+
 *   "How do you debug a specific user's failed request in a system doing 1M RPS?" (Answer: Trace ID injection in headers + Tail Sampling).
 *   "Prometheus is using 200GB RAM. What do you do?" (Answer: Check cardinality `topk(10, count by (__name__, label) ({__name__=~".+"}))`, drop high-cardinality labels).
