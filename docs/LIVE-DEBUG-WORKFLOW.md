@@ -3,6 +3,8 @@
 > **Active debugging:** use [DEBUG-RUNBOOK.md](../DEBUG-RUNBOOK.md) at the repo root — symptom-based ToC, copy-paste fix commands, one file.
 >
 > **This file** covers the investigation workflow: how to think through a failure, what to avoid, and how to verify fixes.
+>
+> **If Docker Desktop or Minikube is broken first:** use [LOCAL-CLUSTER-DEBUGGING.md](./LOCAL-CLUSTER-DEBUGGING.md).
 
 Use this guide as your operational path. Use [ENGINEERING-DEPTH.md](./ENGINEERING-DEPTH.md) for deeper theory and architecture questions.
 
@@ -50,7 +52,8 @@ Use the repo in this order:
 1. Read this guide once and practice the command flow on a local cluster.
 2. Use [playbooks/common-issues.md](../playbooks/common-issues.md) as a symptom-to-cause reference.
 3. Use [docs/engineers/pod-startup-issues.md](./engineers/pod-startup-issues.md) and [docs/engineers/debugging-techniques.md](./engineers/debugging-techniques.md) when the issue is in pod startup, probes, config, or runtime behaviour.
-4. Use scripts in `scripts/diagnostics/` as command inspiration — not as your first move on a live cluster.
+4. If the local lab platform is unhealthy, switch to [LOCAL-CLUSTER-DEBUGGING.md](./LOCAL-CLUSTER-DEBUGGING.md).
+5. Use scripts in `scripts/diagnostics/` as command inspiration — not as your first move on a live cluster.
 
 ## Safe Debugging Workflow
 
@@ -99,11 +102,15 @@ kubectl describe node <node>
 kubectl get pvc -n <namespace>
 ```
 
-Common causes:
-- Unschedulable because of CPU or memory requests.
-- Taints without tolerations.
-- Node selectors or affinity rules that match no node.
-- Unbound PVCs.
+Common causes & Fixes:
+- **Unschedulable (CPU/Memory):** The cluster is full.
+  - *Fix:* `kubectl scale deployment <name> --replicas=0` to free up space, or `kubectl edit deployment <name>` to lower requests.
+- **Taints without tolerations:** Node doesn't allow the pod.
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "add", "path": "/spec/template/spec/tolerations", "value": [{"key": "key", "operator": "Exists"}]}]'`
+- **Node selectors match no node:**
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector"}]'`
+- **Unbound PVCs:**
+  - *Fix:* Verify StorageClass exists, then delete and recreate the PVC/Pod.
 
 #### `CrashLoopBackOff` or `Error`
 
@@ -113,12 +120,17 @@ kubectl describe pod <pod> -n <namespace>
 kubectl get pod <pod> -n <namespace> -o yaml
 ```
 
-Common causes:
-- Bad command or entrypoint.
-- Missing environment variable, Secret, or ConfigMap key.
-- Probe failure causing restarts.
-- Port mismatch between the app and the manifest.
-- Resource limits too low.
+Common causes & Fixes:
+- **Bad command or entrypoint:**
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/command", "value": ["new-command"]}]'`
+- **Missing environment variable, Secret, or ConfigMap key:**
+  - *Fix:* `kubectl set env deployment/<name> KEY=VALUE -n <ns>`
+- **Probe failure causing restarts:**
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/livenessProbe/initialDelaySeconds", "value": 30}]'`
+- **Port mismatch between the app and the manifest:**
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/ports/0/containerPort", "value": 8080}]'`
+- **Resource limits too low (OOMKilled):**
+  - *Fix:* `kubectl set resources deployment <name> -c <container> --limits=memory=512Mi`
 
 #### `ImagePullBackOff` or `ErrImagePull`
 
@@ -126,11 +138,13 @@ Common causes:
 kubectl describe pod <pod> -n <namespace>
 ```
 
-Common causes:
-- Wrong image tag.
-- Missing image pull secret.
-- Registry auth issue.
-- Private registry network access issue.
+Common causes & Fixes:
+- **Wrong image tag:**
+  - *Fix:* `kubectl set image deployment/<name> <container>=<image>:<correct-tag> -n <ns>`
+- **Missing image pull secret:**
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "add", "path": "/spec/template/spec/imagePullSecrets", "value": [{"name": "my-secret"}]}]'`
+- **Registry auth issue / Private registry network access issue:**
+  - *Fix:* Check pod events for network timeouts vs auth failures. Update `imagePullSecrets` or fix node routing.
 
 #### Pod Is Running But App Still Fails
 
@@ -143,13 +157,17 @@ kubectl get ingress -n <namespace>
 kubectl get networkpolicy -A
 ```
 
-Common causes:
-
-- Readiness probe failing — pod never enters service endpoints.
-- Service selector does not match pod labels.
-- Wrong target port or container port.
-- Ingress points to the wrong service or port.
-- NetworkPolicy blocks traffic.
+Common causes & Fixes:
+- **Readiness probe failing (pod never enters service endpoints):**
+  - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/httpGet/path", "value": "/healthz"}]'`
+- **Service selector does not match pod labels:**
+  - *Fix:* `kubectl patch svc <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/selector/app", "value": "correct-label"}]'`
+- **Wrong target port or container port:**
+  - *Fix:* `kubectl patch svc <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/ports/0/targetPort", "value": 8080}]'`
+- **Ingress points to the wrong service or port:**
+  - *Fix:* `kubectl edit ingress <name> -n <ns>` to correct the backend service mapping.
+- **NetworkPolicy blocks traffic:**
+  - *Fix:* Apply or update NetworkPolicy to allow ingress from the correct namespace/pod labels.
 
 #### DNS Or Service Discovery Issue
 
@@ -159,6 +177,12 @@ kubectl get svc -A
 kubectl get endpoints -A
 kubectl logs -n kube-system -l k8s-app=kube-dns --tail=50
 ```
+
+Common causes & Fixes:
+- **CoreDNS pods are crashing/failing:**
+  - *Fix:* `kubectl delete pod -n kube-system -l k8s-app=kube-dns` to force a restart.
+- **Node networking issues preventing DNS queries:**
+  - *Fix:* Check CNI logs (e.g. `kubectl logs -n kube-system -l k8s-app=calico-node`).
 
 Use `kubectl exec` or `kubectl debug` only after narrowing the issue, and only when you can explain why interactive shell access is necessary:
 

@@ -39,6 +39,7 @@ Ensure you have the standard K8s toolchain:
 *   `kubectl`
 *   `helm`
 *   `python3` (for the diagnostics CLI)
+*   `docker` and `minikube` (for local lab clusters)
 
 ---
 
@@ -46,6 +47,7 @@ Ensure you have the standard K8s toolchain:
 
 - **For a course or workshop**: Start with [course/README.md](./course/README.md) for the syllabus, module order, and instructor notes.
 - **For live cluster debugging**: Open [DEBUG-RUNBOOK.md](./DEBUG-RUNBOOK.md) — symptom ToC and fix commands in one file.
+- **For broken local labs**: Use [docs/LOCAL-CLUSTER-DEBUGGING.md](./docs/LOCAL-CLUSTER-DEBUGGING.md) before treating a Minikube or Docker failure like an application issue.
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
 - **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
@@ -101,6 +103,8 @@ Given a running cluster with a failing application, use this repo in this order:
 4. **[Pod Startup Issues](./docs/engineers/pod-startup-issues.md)** — scheduling, init containers, misconfigurations
 5. **[Advanced Debugging Techniques](./docs/engineers/debugging-techniques.md)** — exit codes, probes, runtime troubleshooting
 
+If the environment itself is broken before workloads can even run, switch to [Local Cluster Debugging](./docs/LOCAL-CLUSTER-DEBUGGING.md).
+
 ---
 
 ## 🎓 Engineering Depth
@@ -150,6 +154,7 @@ The repository is organized by function and role:
 │   ├── GKE-DEBUGGING-FRAMEWORK.md   # GKE provider overlay
 │   ├── BAREMETAL-DEBUGGING-FRAMEWORK.md # Bare metal provider overlay
 │   ├── LIVE-DEBUG-WORKFLOW.md       # Investigation workflow + safe change strategy
+│   ├── LOCAL-CLUSTER-DEBUGGING.md   # Docker Desktop + Minikube recovery workflow
 │   ├── ENGINEERING-DEPTH.md         # Staff-level systems thinking + production scenarios
 │   ├── aws/
 │   │   ├── eks-networking.md        # VPC CNI, NLB/ALB, SGs, NACLs, NAT, ECR
@@ -174,6 +179,7 @@ The repository is organized by function and role:
 ├── scripts/
 │   ├── diagnostics/                 # Read-only health checks (Safe to run)
 │   ├── fixes/                       # Auto-remediation tools (Changes state)
+│   ├── local/                       # Local Docker Desktop + Minikube checks and recovery
 │   └── monitoring/                  # Prometheus/Grafana bootstrap
 ├── playbooks/                       # P0/P1 Incident Runbooks
 └── k8s/                             # Manifests & Example Apps
@@ -216,6 +222,7 @@ Compliance meets Engineering (NIST/CIS).
 Stop manual debugging. Use the CLI tools in `scripts/`:
 *   **Diagnostics:** `cluster-health`, `pod-diagnostics`, `network-diagnostics`.
 *   **Remediation:** `auto-restart-failed-pods`, `fix-dns-issues`.
+*   **Local Lab Recovery:** `minikube-doctor`, `restart-minikube`.
 *   **Observability:** `setup-prometheus`, `configure-alerts`.
 
 For programmatic access and library usage, see the **[Programmatic Guide](./PROGRAMMATIC-GUIDE.md)**.
@@ -235,4 +242,4 @@ We provide specific "Models" for each role in your organization to ensure compre
 
 *Version: 1.1.0*
 *Maintainers: Platform Engineering*
-*Last Updated: December 2025*
+*Last Updated: April 2026*
