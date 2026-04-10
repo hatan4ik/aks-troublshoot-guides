@@ -100,8 +100,14 @@ The repository is organized by function and role:
 
 ```text
 .
-├── docs/                            # Documentation Hub
-│   ├── ENGINEERING-DEPTH.md         # <--- START HERE: Engineering Depth Reference
+├── DEBUG-RUNBOOK.md                 # <--- ACTIVE DEBUGGING: Symptom ToC + fix commands
+├── docs/
+│   ├── AKS-DEBUGGING-FRAMEWORK.md  # <--- START HERE: 5-layer model + decision tree
+│   ├── LIVE-DEBUG-WORKFLOW.md       # Investigation workflow + safe change strategy
+│   ├── ENGINEERING-DEPTH.md         # Staff-level systems thinking + production scenarios
+│   ├── azure/
+│   │   ├── aks-networking.md        # NSG, Azure CNI, Load Balancer, UDR, Private clusters
+│   │   └── azure-observability.md  # Container Insights, Log Analytics KQL, Azure Monitor
 │   ├── on-prem-kubernetes.md        # Bare Metal / DIY K8s Guide
 │   ├── network-controllers-...md    # CNI (Calico/Cilium) & Ingress Debugging
 │   ├── security-control-...md       # SCF, OPA/Kyverno & Runtime Security
@@ -109,6 +115,7 @@ The repository is organized by function and role:
 │   ├── engineers/                   # Development & Debugging
 │   ├── devops/                      # CI/CD & Infrastructure Automation
 │   └── sre/                         # Site Reliability Engineering (Observability)
+├── practice/                        # 19 broken manifests for hands-on debugging
 ├── scripts/
 │   ├── diagnostics/                 # Read-only health checks (Safe to run)
 │   ├── fixes/                       # Auto-remediation tools (Changes state)
@@ -120,6 +127,14 @@ The repository is organized by function and role:
 ---
 
 ## 🛠️ Deep Dive Guides
+
+### 0. AKS-Specific Layers
+
+Azure infrastructure is the outer shell around the cluster. When `kubectl` is clean but the failure persists, investigate here.
+
+- [**AKS Debugging Framework**](./docs/AKS-DEBUGGING-FRAMEWORK.md) — 5-layer model, decision tree, golden debug flow, when to escalate to Azure Support.
+- [**AKS Networking**](./docs/azure/aks-networking.md) — Azure CNI vs Kubenet, NSG rules, Azure Load Balancer health probes, UDR routing, private clusters, Azure DNS.
+- [**Azure Observability**](./docs/azure/azure-observability.md) — Container Insights, Log Analytics KQL queries, Azure Monitor alerts, App Insights distributed tracing, Prometheus/Grafana.
 
 ### 1. On-Prem / Bare Metal
 Running K8s without AWS/Azure? "You are the Cloud Provider."
