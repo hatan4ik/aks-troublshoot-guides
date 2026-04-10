@@ -6,6 +6,34 @@
 
 Use this guide as your operational path. Use [ENGINEERING-DEPTH.md](./ENGINEERING-DEPTH.md) for deeper theory and architecture questions.
 
+## Visualizing the Broken Path
+
+Kubernetes debugging is highly visual. Before you run commands, picture the path of a request to understand where the "chain" is breaking:
+
+```mermaid
+flowchart TD
+    Client((Client)) -->|Layer 7 Request| Ingress[Ingress/AppGateway]
+    Ingress -->|Routing Rule Match| Service[Service ClusterIP]
+    Service -->|Endpoint Selection| Pod[Pod IP]
+    
+    subgraph K8s Cluster
+        Ingress
+        Service
+        subgraph Node
+            Pod
+        end
+    end
+    
+    %% Error points
+    ErrorIng[404/502: Wrong Service, Bad Config]
+    ErrorSvc[Connection Refused: No Endpoints, Wrong Selector]
+    ErrorPod[Timeout: Bad Probe, CrashLoop, OOMKilled]
+    
+    Ingress -.-> ErrorIng
+    Service -.-> ErrorSvc
+    Pod -.-> ErrorPod
+```
+
 ## Goal
 
 Demonstrate that you can:

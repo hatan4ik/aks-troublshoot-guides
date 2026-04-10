@@ -55,3 +55,7 @@ example-health:
 example-detect:
 	@echo "Detecting issues..."
 	@python k8s-diagnostics-cli.py detect
+
+chaos:
+	@echo "Setting up chaos sandbox..."
+	@bash scripts/chaos.sh

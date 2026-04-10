@@ -29,7 +29,12 @@ By the end of the course, students should be able to:
 - `kind` or `minikube` for local labs
 - one provider CLI as needed: `az`, `aws`, or `gcloud`
 
-## Module Map
+## Module Map (Zero to Hero Progression)
+
+- **Hero Level 1 (Fundamentals):** Learn the mental models from [Live Debugging Workflow](../docs/LIVE-DEBUG-WORKFLOW.md) and module foundations.
+- **Hero Level 2 (The 19 Scenarios):** Work through the `practice/` folder blindly. Diagnose -> Fix -> Verify.
+- **Hero Level 3 (Automation):** Learn how the `k8s-diagnostics-cli.py` works to understand how to script these fixes.
+- **Hero Level 4 (Provider Specific):** Deep dive into provider docs to understand when the issue leaves Kubernetes and hits the provider (CNI/Load Balancer).
 
 1. Foundations and debugging framework
 2. Pod lifecycle, probes, config, and runtime failures
