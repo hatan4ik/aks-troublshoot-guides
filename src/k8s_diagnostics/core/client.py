@@ -8,6 +8,10 @@ class K8sClient:
         self.config_error: Optional[str] = None
         self.v1 = None
         self.apps_v1 = None
+        self.networking_v1 = None
+        self.autoscaling_v1 = None
+        self.autoscaling_v2 = None
+        self.batch_v1 = None
         self.metrics = None
         # Fixer is injected later to break cycles
         self.fixer = None
@@ -23,10 +27,15 @@ class K8sClient:
 
         self.v1 = client.CoreV1Api()
         self.apps_v1 = client.AppsV1Api()
+        self.networking_v1 = client.NetworkingV1Api()
+        self.autoscaling_v1 = client.AutoscalingV1Api()
+        self.autoscaling_v2 = client.AutoscalingV2Api()
+        self.batch_v1 = client.BatchV1Api()
         self.metrics = client.CustomObjectsApi()
 
     @property
     def available(self) -> bool:
+        # Only core APIs are required; extended APIs (autoscaling, batch) are optional
         return self.v1 is not None and self.apps_v1 is not None and self.metrics is not None
 
     def is_ready(self, request_timeout: int = 2) -> bool:

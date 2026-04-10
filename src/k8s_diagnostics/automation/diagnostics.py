@@ -565,6 +565,24 @@ class DiagnosticsEngine:
                 "details": image_pull[:5],
             })
 
+        selector_mismatches = self._detect_service_selector_mismatches()
+        if selector_mismatches:
+            issues.append({
+                "type": "service_selector_mismatch",
+                "severity": "high",
+                "count": len(selector_mismatches),
+                "details": selector_mismatches[:5],
+            })
+
+        config_key_mismatches = self._detect_configmap_key_mismatches(pods.items)
+        if config_key_mismatches:
+            issues.append({
+                "type": "configmap_key_mismatch",
+                "severity": "high",
+                "count": len(config_key_mismatches),
+                "details": config_key_mismatches[:5],
+            })
+
         # Pending PVCs
         pending_pvcs = self.k8s.v1.list_persistent_volume_claim_for_all_namespaces()
         stuck_pvcs = [
@@ -599,6 +617,15 @@ class DiagnosticsEngine:
                 "details": pending_lbs[:5],
             })
 
+        ingress_backend_issues = self._detect_ingress_backend_missing_services()
+        if ingress_backend_issues:
+            issues.append({
+                "type": "ingress_backend_missing_service",
+                "severity": "high",
+                "count": len(ingress_backend_issues),
+                "details": ingress_backend_issues[:5],
+            })
+
         # High restart counts
         high_restart = [
             f"{pod.metadata.namespace}/{pod.metadata.name}"
@@ -625,6 +652,15 @@ class DiagnosticsEngine:
                 "hint": "Use 'diagnose <ns> <pod>' for per-container probe analysis",
             })
 
+        aggressive_liveness = self._detect_aggressive_liveness_probes(pods.items)
+        if aggressive_liveness:
+            issues.append({
+                "type": "aggressive_liveness_probe",
+                "severity": "high",
+                "count": len(aggressive_liveness),
+                "details": aggressive_liveness[:5],
+            })
+
         # Warning events cluster-wide (last 1 hour)
         warning_events = self._check_warning_events()
         if warning_events:
@@ -647,6 +683,94 @@ class DiagnosticsEngine:
                 "hint": "kubectl get componentstatuses",
             })
 
+        # CrashLoopBackOff (phase=Running but waiting.reason=CrashLoopBackOff)
+        crashloop = self._find_crashloop_pods(pods.items)
+        if crashloop:
+            issues.append({
+                "type": "crashloop_backoff",
+                "severity": "high",
+                "count": len(crashloop),
+                "details": crashloop[:5],
+                "hint": "kubectl logs <pod> --previous -n <ns> — check exit code with diagnose <ns> <pod>",
+            })
+
+        # Terminating pods stuck with finalizers
+        stuck_terminating = self._find_stuck_terminating(pods.items)
+        if stuck_terminating:
+            issues.append({
+                "type": "stuck_terminating",
+                "severity": "medium",
+                "count": len(stuck_terminating),
+                "details": stuck_terminating[:5],
+                "hint": "kubectl get pod <pod> -o yaml | grep finalizers — remove finalizer to unblock",
+            })
+
+        # Missing ConfigMaps/Secrets referenced by pods
+        missing_refs = self._find_missing_config_refs(pods.items)
+        if missing_refs:
+            issues.append({
+                "type": "missing_config_refs",
+                "severity": "high",
+                "count": len(missing_refs),
+                "details": missing_refs[:5],
+                "hint": "Create the missing ConfigMap or Secret, or remove the reference from the pod spec",
+            })
+
+        # NetworkPolicy deny-all (ingress policyType with no ingress rules)
+        deny_all_ns = self._find_deny_all_networkpolicies()
+        if deny_all_ns:
+            issues.append({
+                "type": "networkpolicy_deny_all",
+                "severity": "medium",
+                "count": len(deny_all_ns),
+                "details": deny_all_ns[:5],
+                "hint": "kubectl get networkpolicy -n <ns> -o yaml — add ingress rules or an allow policy",
+            })
+
+        # HPA not scaling (metrics unavailable or misconfigured)
+        hpa_issues = self._find_hpa_issues()
+        if hpa_issues:
+            issues.append({
+                "type": "hpa_issues",
+                "severity": "medium",
+                "count": len(hpa_issues),
+                "details": hpa_issues[:5],
+                "hint": "kubectl describe hpa -n <ns> — check if metrics-server is running and metric name is correct",
+            })
+
+        # TLS Secret certificates expiring within 7 days or already expired
+        cert_issues = self._find_expiring_tls_certs()
+        if cert_issues:
+            issues.append({
+                "type": "tls_cert_expiring",
+                "severity": "high",
+                "count": len(cert_issues),
+                "details": cert_issues[:5],
+                "hint": "Renew TLS certificates; if using cert-manager: kubectl annotate certificate <name> -n <ns> cert-manager.io/renewal-reason=manual",
+            })
+
+        # Jobs/CronJobs stuck (backoffLimit exhausted or active+complete stalled)
+        job_issues = self._find_stuck_jobs()
+        if job_issues:
+            issues.append({
+                "type": "stuck_jobs",
+                "severity": "medium",
+                "count": len(job_issues),
+                "details": job_issues[:5],
+                "hint": "kubectl describe job <name> -n <ns> — check backoffLimit, pod logs, and whether the job command exits 0",
+            })
+
+        # DaemonSet pods not scheduled on all eligible nodes
+        ds_issues = self._find_daemonset_gaps()
+        if ds_issues:
+            issues.append({
+                "type": "daemonset_not_fully_scheduled",
+                "severity": "medium",
+                "count": len(ds_issues),
+                "details": ds_issues[:5],
+                "hint": "kubectl describe ds <name> -n <ns> — check nodeSelector and tolerations; new nodes may need labels",
+            })
+
         return {"issues": issues, "timestamp": datetime.now().isoformat()}
 
     def _find_probe_failures(self, pods: List[V1Pod]) -> List[str]:
@@ -660,6 +784,128 @@ class DiagnosticsEngine:
                         f"{pod.metadata.namespace}/{pod.metadata.name} (container: {cs.name})"
                     )
         return failures
+
+    def _detect_service_selector_mismatches(self) -> List[str]:
+        issues = []
+        services = self.k8s.v1.list_service_for_all_namespaces().items
+        endpoints = {
+            (ep.metadata.namespace, ep.metadata.name): ep
+            for ep in self.k8s.v1.list_endpoints_for_all_namespaces().items
+        }
+
+        for svc in services:
+            if not svc.spec.selector:
+                continue
+
+            ep = endpoints.get((svc.metadata.namespace, svc.metadata.name))
+            if ep and ep.subsets:
+                continue
+
+            try:
+                dep = self.k8s.apps_v1.read_namespaced_deployment(
+                    svc.metadata.name, svc.metadata.namespace
+                )
+            except Exception:
+                continue
+
+            expected = dep.spec.selector.match_labels or {}
+            current = svc.spec.selector or {}
+            if expected and expected != current:
+                issues.append(
+                    f"{svc.metadata.namespace}/{svc.metadata.name} — selector {current} does not match deployment selector {expected}"
+                )
+
+        return issues
+
+    def _detect_configmap_key_mismatches(self, pods: List[V1Pod]) -> List[str]:
+        issues = []
+        for pod in pods:
+            waiting_reasons = {
+                cs.state.waiting.reason
+                for cs in (pod.status.container_statuses or [])
+                if cs.state and cs.state.waiting and cs.state.waiting.reason
+            }
+            if "CreateContainerConfigError" not in waiting_reasons:
+                continue
+
+            for container in pod.spec.containers or []:
+                for env in container.env or []:
+                    ref = getattr(getattr(env, "value_from", None), "config_map_key_ref", None)
+                    if not ref or not ref.name or not ref.key:
+                        continue
+
+                    try:
+                        cm = self.k8s.v1.read_namespaced_config_map(
+                            ref.name, pod.metadata.namespace
+                        )
+                    except Exception:
+                        continue
+
+                    data = cm.data or {}
+                    if ref.key in data:
+                        continue
+
+                    issues.append(
+                        f"{pod.metadata.namespace}/{pod.metadata.name} — ConfigMap {ref.name} missing key {ref.key}; available keys: {sorted(data.keys())}"
+                    )
+
+        return issues
+
+    def _detect_ingress_backend_missing_services(self) -> List[str]:
+        issues = []
+        ingresses = self.k8s.networking_v1.list_ingress_for_all_namespaces().items
+        services_by_ns = {}
+
+        for ingress in ingresses:
+            namespace = ingress.metadata.namespace
+            if namespace not in services_by_ns:
+                services_by_ns[namespace] = {
+                    svc.metadata.name
+                    for svc in self.k8s.v1.list_namespaced_service(namespace).items
+                }
+
+            for rule in ingress.spec.rules or []:
+                http = getattr(rule, "http", None)
+                if not http:
+                    continue
+                for path in http.paths or []:
+                    backend = getattr(path, "backend", None)
+                    service = getattr(backend, "service", None)
+                    service_name = getattr(service, "name", None)
+                    if service_name and service_name not in services_by_ns[namespace]:
+                        issues.append(
+                            f"{namespace}/{ingress.metadata.name} — backend service {service_name} does not exist"
+                        )
+
+        return issues
+
+    def _detect_aggressive_liveness_probes(self, pods: List[V1Pod]) -> List[str]:
+        issues = []
+        for pod in pods:
+            if pod.metadata.namespace in ("kube-system", "kube-public", "kube-node-lease"):
+                continue
+
+            if not any((cs.restart_count or 0) > 0 for cs in (pod.status.container_statuses or [])):
+                continue
+
+            pod_events = self._get_pod_events(pod.metadata.namespace, pod.metadata.name)
+            if not any(
+                event["reason"] == "Unhealthy" and "Liveness probe failed" in event["message"]
+                for event in pod_events
+            ):
+                continue
+
+            for container in pod.spec.containers or []:
+                probe = container.liveness_probe
+                if not probe:
+                    continue
+                initial_delay = probe.initial_delay_seconds or 0
+                if initial_delay < 10:
+                    issues.append(
+                        f"{pod.metadata.namespace}/{pod.metadata.name} — liveness probe initialDelaySeconds={initial_delay} is too low for a restarting workload"
+                    )
+
+        return issues
 
     # ─────────────────────────────────────────────────────────────
     # New checks: node pressure, warning events, component health
@@ -738,6 +984,318 @@ class DiagnosticsEngine:
                 unhealthy.append(f"ComponentStatus API unavailable: {e}")
         return unhealthy
 
+    # ─────────────────────────────────────────────────────────────
+    # Universal gap checks (Phase 1)
+    # ─────────────────────────────────────────────────────────────
+
+    def _find_crashloop_pods(self, pods: List[V1Pod]) -> List[str]:
+        """Detect CrashLoopBackOff containers.
+
+        phase=Running pods can still have containers in waiting state with
+        reason=CrashLoopBackOff — these are invisible to the failed_pods check.
+        """
+        result = []
+        for pod in pods:
+            for cs in (pod.status.container_statuses or []):
+                if (cs.state and cs.state.waiting
+                        and cs.state.waiting.reason == "CrashLoopBackOff"):
+                    result.append(
+                        f"{pod.metadata.namespace}/{pod.metadata.name} "
+                        f"(container: {cs.name}, restarts: {cs.restart_count})"
+                    )
+        return result
+
+    def _find_stuck_terminating(self, pods: List[V1Pod]) -> List[str]:
+        """Find pods stuck in Terminating (deletion timestamp set but pod still present).
+
+        A pod is stuck if it has been in Terminating for more than 5 minutes,
+        which almost always means a finalizer is blocking deletion.
+        """
+        from datetime import timezone
+        now = datetime.now(tz=timezone.utc)
+        stuck = []
+        for pod in pods:
+            if not pod.metadata.deletion_timestamp:
+                continue
+            ts = pod.metadata.deletion_timestamp
+            if hasattr(ts, "tzinfo") and ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            age_minutes = (now - ts).total_seconds() / 60
+            if age_minutes > 5:
+                finalizers = pod.metadata.finalizers or []
+                stuck.append(
+                    f"{pod.metadata.namespace}/{pod.metadata.name} "
+                    f"(terminating {int(age_minutes)}m, finalizers: {finalizers or 'none'})"
+                )
+        return stuck
+
+    def _find_missing_config_refs(self, pods: List[V1Pod]) -> List[str]:
+        """Find pods referencing ConfigMaps or Secrets that do not exist.
+
+        Checks env.valueFrom.configMapKeyRef, env.valueFrom.secretKeyRef,
+        envFrom.configMapRef, envFrom.secretRef, and volume.configMap/secret sources.
+        Only checks pods that are not Running (Pending/Init/etc.) to reduce noise.
+        """
+        missing = []
+        # Collect all existing configmaps and secrets per namespace (lazy, per namespace)
+        cm_cache: Dict[str, set] = {}
+        sec_cache: Dict[str, set] = {}
+
+        def _cms(ns: str) -> set:
+            if ns not in cm_cache:
+                try:
+                    items = self.k8s.v1.list_namespaced_config_map(ns).items
+                    cm_cache[ns] = {i.metadata.name for i in items}
+                except Exception:
+                    cm_cache[ns] = set()
+            return cm_cache[ns]
+
+        def _secs(ns: str) -> set:
+            if ns not in sec_cache:
+                try:
+                    items = self.k8s.v1.list_namespaced_secret(ns).items
+                    sec_cache[ns] = {i.metadata.name for i in items}
+                except Exception:
+                    sec_cache[ns] = set()
+            return sec_cache[ns]
+
+        for pod in pods:
+            # Only check non-running pods to surface actionable issues
+            if pod.status.phase == "Running":
+                continue
+            ns = pod.metadata.namespace
+            pod_ref = f"{ns}/{pod.metadata.name}"
+            found: List[str] = []
+
+            for container in (pod.spec.containers or []) + (pod.spec.init_containers or []):
+                # env valueFrom refs
+                for env in (container.env or []):
+                    if not env.value_from:
+                        continue
+                    if env.value_from.config_map_key_ref:
+                        name = env.value_from.config_map_key_ref.name
+                        if name and name not in _cms(ns):
+                            found.append(f"ConfigMap '{name}' (env {env.name})")
+                    if env.value_from.secret_key_ref:
+                        name = env.value_from.secret_key_ref.name
+                        optional = env.value_from.secret_key_ref.optional
+                        if name and not optional and name not in _secs(ns):
+                            found.append(f"Secret '{name}' (env {env.name})")
+                # envFrom refs
+                for ef in (container.env_from or []):
+                    if ef.config_map_ref:
+                        name = ef.config_map_ref.name
+                        optional = ef.config_map_ref.optional
+                        if name and not optional and name not in _cms(ns):
+                            found.append(f"ConfigMap '{name}' (envFrom)")
+                    if ef.secret_ref:
+                        name = ef.secret_ref.name
+                        optional = ef.secret_ref.optional
+                        if name and not optional and name not in _secs(ns):
+                            found.append(f"Secret '{name}' (envFrom)")
+
+            # Volume refs
+            for vol in (pod.spec.volumes or []):
+                if vol.config_map and vol.config_map.name not in _cms(ns):
+                    optional = vol.config_map.optional
+                    if not optional:
+                        found.append(f"ConfigMap '{vol.config_map.name}' (volume {vol.name})")
+                if vol.secret and vol.secret.secret_name not in _secs(ns):
+                    optional = vol.secret.optional
+                    if not optional:
+                        found.append(f"Secret '{vol.secret.secret_name}' (volume {vol.name})")
+
+            if found:
+                # Deduplicate within a pod
+                deduped = list(dict.fromkeys(found))
+                missing.append(f"{pod_ref}: missing {', '.join(deduped[:3])}")
+
+        return missing
+
+    def _find_deny_all_networkpolicies(self) -> List[str]:
+        """Detect NetworkPolicies that impose a deny-all by selecting all pods
+        with an Ingress policyType but providing zero ingress rules.
+
+        This is the most common silent traffic-drop pattern:
+          policyTypes: [Ingress]   # with no ingress: [] block
+        """
+        deny_all = []
+        try:
+            policies = self.k8s.networking_v1.list_network_policy_for_all_namespaces()
+        except Exception:
+            return []
+
+        for np in policies.items:
+            spec = np.spec
+            if not spec:
+                continue
+            policy_types = spec.policy_types or []
+            if "Ingress" not in policy_types:
+                continue
+            # An empty ingress list (or absent ingress key) with Ingress policyType = deny all
+            if not spec.ingress:
+                deny_all.append(
+                    f"{np.metadata.namespace}/{np.metadata.name} "
+                    f"(podSelector: {spec.pod_selector.match_labels or 'all pods'})"
+                )
+        return deny_all
+
+    def _find_hpa_issues(self) -> List[str]:
+        """Detect HPAs that are unable to scale.
+
+        Looks for HPAs where currentReplicas == desiredReplicas == maxReplicas
+        (maxed out and stuck), or where conditions indicate ScalingActive=False
+        (metrics unavailable or metric name wrong).
+        """
+        issues = []
+        try:
+            hpas = self.k8s.autoscaling_v2.list_horizontal_pod_autoscaler_for_all_namespaces()
+        except Exception:
+            try:
+                hpas = self.k8s.autoscaling_v1.list_horizontal_pod_autoscaler_for_all_namespaces()
+            except Exception:
+                return []
+
+        for hpa in hpas.items:
+            ref = f"{hpa.metadata.namespace}/{hpa.metadata.name}"
+            status = hpa.status
+            if not status:
+                continue
+
+            # Check conditions (v2 only)
+            if hasattr(status, "conditions"):
+                for cond in (status.conditions or []):
+                    if cond.type == "ScalingActive" and cond.status == "False":
+                        issues.append(
+                            f"{ref}: ScalingActive=False — {cond.reason}: {cond.message}"
+                        )
+                    elif cond.type == "AbleToScale" and cond.status == "False":
+                        issues.append(
+                            f"{ref}: AbleToScale=False — {cond.reason}: {cond.message}"
+                        )
+
+            # Check if maxed out (may need scale-out that is blocked)
+            max_replicas = hpa.spec.max_replicas if hpa.spec else None
+            current = status.current_replicas or 0
+            desired = status.desired_replicas or 0
+            if max_replicas and current == max_replicas and desired >= max_replicas:
+                issues.append(
+                    f"{ref}: at maxReplicas ({max_replicas}) — "
+                    "load may still be high; review max or reduce resource usage"
+                )
+
+        return issues
+
+    def _find_expiring_tls_certs(self) -> List[str]:
+        """Find TLS Secrets whose certificates expire within 7 days or are already expired."""
+        import base64
+        from datetime import timezone
+        expiring = []
+        now = datetime.now(tz=timezone.utc)
+        warn_threshold_days = 7
+
+        try:
+            secrets = self.k8s.v1.list_secret_for_all_namespaces(
+                field_selector="type=kubernetes.io/tls"
+            )
+        except Exception:
+            return []
+
+        for secret in secrets.items:
+            cert_data = (secret.data or {}).get("tls.crt")
+            if not cert_data:
+                continue
+            try:
+                cert_bytes = base64.b64decode(cert_data)
+                # Use cryptography library if available, otherwise skip parsing
+                try:
+                    from cryptography import x509 as cx509
+                    from cryptography.hazmat.backends import default_backend
+                    raw = cert_bytes if b"BEGIN CERTIFICATE" in cert_bytes else base64.b64decode(cert_data)
+                    cert_obj = cx509.load_pem_x509_certificate(raw, default_backend())
+                    expiry = cert_obj.not_valid_after_utc if hasattr(cert_obj, "not_valid_after_utc") else cert_obj.not_valid_after.replace(tzinfo=timezone.utc)
+                    days_left = (expiry - now).days
+                    if days_left <= warn_threshold_days:
+                        ref = f"{secret.metadata.namespace}/{secret.metadata.name}"
+                        status = "EXPIRED" if days_left < 0 else f"expires in {days_left}d"
+                        expiring.append(f"{ref}: {status} ({expiry.date()})")
+                except ImportError:
+                    # cryptography not installed — skip cert parsing, note it once
+                    expiring.append(
+                        "TLS cert check skipped: install 'cryptography' package to enable"
+                    )
+                    break
+            except Exception:
+                continue
+
+        return expiring
+
+    def _find_stuck_jobs(self) -> List[str]:
+        """Find Jobs where backoffLimit is exhausted or that have been active
+        far longer than their activeDeadlineSeconds (if set).
+        """
+        from datetime import timezone
+        stuck = []
+        try:
+            jobs = self.k8s.batch_v1.list_job_for_all_namespaces()
+        except Exception:
+            return []
+
+        now = datetime.now(tz=timezone.utc)
+        for job in jobs.items:
+            ref = f"{job.metadata.namespace}/{job.metadata.name}"
+            status = job.status
+            spec = job.spec
+            if not status or not spec:
+                continue
+
+            # Job failed (backoffLimit exhausted)
+            if status.failed and spec.backoff_limit is not None:
+                if status.failed > spec.backoff_limit:
+                    stuck.append(
+                        f"{ref}: failed {status.failed} times (backoffLimit={spec.backoff_limit}) — "
+                        "check pod logs for root cause"
+                    )
+                    continue
+
+            # Job has been active longer than activeDeadlineSeconds
+            if spec.active_deadline_seconds and status.start_time and status.active:
+                start = status.start_time
+                if hasattr(start, "tzinfo") and start.tzinfo is None:
+                    start = start.replace(tzinfo=timezone.utc)
+                elapsed = (now - start).total_seconds()
+                if elapsed > spec.active_deadline_seconds * 1.2:  # 20% grace
+                    stuck.append(
+                        f"{ref}: active {int(elapsed)}s, deadline={spec.active_deadline_seconds}s"
+                    )
+
+        return stuck
+
+    def _find_daemonset_gaps(self) -> List[str]:
+        """Find DaemonSets where desiredNumberScheduled != numberReady.
+
+        This detects DaemonSet pods that are not scheduled on new/all eligible nodes.
+        """
+        gaps = []
+        try:
+            daemonsets = self.k8s.apps_v1.list_daemon_set_for_all_namespaces()
+        except Exception:
+            return []
+
+        for ds in daemonsets.items:
+            status = ds.status
+            if not status:
+                continue
+            desired = status.desired_number_scheduled or 0
+            ready = status.number_ready or 0
+            if desired > 0 and ready < desired:
+                gaps.append(
+                    f"{ds.metadata.namespace}/{ds.metadata.name}: "
+                    f"{ready}/{desired} ready "
+                    f"(misscheduled: {status.number_misscheduled or 0})"
+                )
+        return gaps
+
     async def predict_risk(self) -> Dict:
         """Heuristic risk score from detected issues."""
         issues = await self.detect_common_issues()
@@ -767,6 +1325,21 @@ class DiagnosticsEngine:
             if issue["type"] == "dns_unhealthy":
                 result = await self.k8s.fixer.fix_dns_issues()
                 actions.append({"issue": "dns_unhealthy", "result": result})
+            if issue["type"] == "image_pull_errors":
+                result = await self.k8s.fixer.fix_image_pull_errors()
+                actions.append({"issue": "image_pull_errors", "result": result})
+            if issue["type"] == "service_selector_mismatch":
+                result = await self.k8s.fixer.fix_service_selector_mismatches()
+                actions.append({"issue": "service_selector_mismatch", "result": result})
+            if issue["type"] == "configmap_key_mismatch":
+                result = await self.k8s.fixer.fix_configmap_key_mismatches()
+                actions.append({"issue": "configmap_key_mismatch", "result": result})
+            if issue["type"] == "ingress_backend_missing_service":
+                result = await self.k8s.fixer.fix_ingress_backends()
+                actions.append({"issue": "ingress_backend_missing_service", "result": result})
+            if issue["type"] == "aggressive_liveness_probe":
+                result = await self.k8s.fixer.fix_aggressive_liveness_probes()
+                actions.append({"issue": "aggressive_liveness_probe", "result": result})
         return {
             "actions": actions,
             "issues": issues.get("issues", []),

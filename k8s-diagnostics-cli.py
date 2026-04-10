@@ -25,10 +25,15 @@ Flags:
 import asyncio
 import json
 import sys
-from src.k8s_diagnostics.core.client import K8sClient
-from src.k8s_diagnostics.automation.diagnostics import DiagnosticsEngine
-from src.k8s_diagnostics.automation.fixes import AutoFixer
-from src.k8s_diagnostics.automation.chaos import ChaosEngine
+
+IMPORT_ERROR = None
+try:
+    from src.k8s_diagnostics.core.client import K8sClient
+    from src.k8s_diagnostics.automation.diagnostics import DiagnosticsEngine
+    from src.k8s_diagnostics.automation.fixes import AutoFixer
+    from src.k8s_diagnostics.automation.chaos import ChaosEngine
+except ModuleNotFoundError as exc:
+    IMPORT_ERROR = exc
 
 
 def _parse_args(argv):
@@ -99,6 +104,21 @@ class DiagnosticsCLI:
             elif issue["type"] == "dns_unhealthy":
                 fix = await self.fixer.fix_dns_issues(dry_run=True)
                 entry["suggested_fix"] = fix
+            elif issue["type"] == "image_pull_errors":
+                fix = await self.fixer.fix_image_pull_errors(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "service_selector_mismatch":
+                fix = await self.fixer.fix_service_selector_mismatches(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "configmap_key_mismatch":
+                fix = await self.fixer.fix_configmap_key_mismatches(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "ingress_backend_missing_service":
+                fix = await self.fixer.fix_ingress_backends(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "aggressive_liveness_probe":
+                fix = await self.fixer.fix_aggressive_liveness_probes(dry_run=True)
+                entry["suggested_fix"] = fix
             elif issue["type"] == "pvc_not_bound":
                 entry["suggested_fix"] = {
                     "action": "manual_required",
@@ -110,15 +130,6 @@ class DiagnosticsCLI:
                     "hint": (
                         "Check Azure/AWS LB quota and cloud-controller-manager logs: "
                         "kubectl logs -n kube-system -l component=cloud-controller-manager"
-                    ),
-                }
-            elif issue["type"] == "image_pull_errors":
-                entry["suggested_fix"] = {
-                    "action": "manual_required",
-                    "hint": (
-                        "kubectl describe pod <pod> — check Events for 'unauthorized' "
-                        "(missing imagePullSecret) vs 'timeout' (NSG/network issue) vs "
-                        "'manifest unknown' (bad image tag)"
                     ),
                 }
             elif issue["type"] == "nodes_not_ready":
@@ -184,6 +195,79 @@ class DiagnosticsCLI:
                         "showing mismatched ports, wrong paths, and low initialDelaySeconds"
                     ),
                 }
+            elif issue["type"] == "crashloop_backoff":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl logs <pod> -n <ns> --previous — "
+                        "then use 'diagnose <ns> <pod>' for exit code interpretation. "
+                        "Exit 137=OOMKill, Exit 127=bad command, Exit 1=app error"
+                    ),
+                }
+            elif issue["type"] == "stuck_terminating":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl patch pod <pod> -n <ns> "
+                        "-p '{\"metadata\":{\"finalizers\":[]}}' --type=merge — "
+                        "WARNING: only do this after confirming the finalizer owner is gone"
+                    ),
+                }
+            elif issue["type"] == "missing_config_refs":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "Create the missing ConfigMap or Secret shown above, "
+                        "or set optional=true in the pod spec if the ref is non-critical"
+                    ),
+                }
+            elif issue["type"] == "networkpolicy_deny_all":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl get networkpolicy -n <ns> -o yaml — "
+                        "add an ingress allow rule, or create a second NetworkPolicy "
+                        "that explicitly allows traffic from the required sources"
+                    ),
+                }
+            elif issue["type"] == "hpa_issues":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe hpa -n <ns> — "
+                        "ScalingActive=False usually means metrics-server is down or "
+                        "the metric name in the HPA spec does not match what is exposed. "
+                        "Check: kubectl top pods -n <ns>"
+                    ),
+                }
+            elif issue["type"] == "tls_cert_expiring":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "If using cert-manager: "
+                        "kubectl annotate certificate <name> -n <ns> "
+                        "cert-manager.io/renewal-reason=manual-$(date +%s). "
+                        "If manual: replace tls.crt and tls.key in the Secret."
+                    ),
+                }
+            elif issue["type"] == "stuck_jobs":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe job <name> -n <ns> — check pod logs for exit reason. "
+                        "To retry: kubectl delete job <name> -n <ns> and recreate. "
+                        "Note: Jobs are immutable — you must delete and recreate to change spec."
+                    ),
+                }
+            elif issue["type"] == "daemonset_not_fully_scheduled":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe ds <name> -n <ns> — "
+                        "check nodeSelector and tolerations match all target nodes. "
+                        "New nodes may need labels: kubectl label node <node> <key>=<value>"
+                    ),
+                }
             else:
                 entry["suggested_fix"] = {"action": "no_automated_fix", "hint": str(issue)}
 
@@ -230,7 +314,28 @@ def _usage():
     sys.exit(1)
 
 
+def _exit_missing_dependency(exc: ModuleNotFoundError):
+    missing = exc.name or "unknown"
+    print(
+        json.dumps(
+            {
+                "status": "dependency_error",
+                "missing_module": missing,
+                "message": (
+                    f"Python dependency '{missing}' is not installed. "
+                    "Run 'python3 -m pip install -r requirements.txt' before using the CLI."
+                ),
+            },
+            indent=2,
+        )
+    )
+    sys.exit(2)
+
+
 def main():
+    if IMPORT_ERROR is not None:
+        _exit_missing_dependency(IMPORT_ERROR)
+
     if len(sys.argv) < 2:
         _usage()
 
