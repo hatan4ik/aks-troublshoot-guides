@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
 """
-K8s Diagnostics CLI - Programmatic interface
-Usage: python k8s-diagnostics-cli.py [command] [options]
+K8s Diagnostics CLI — Programmatic AKS/EKS/K8s troubleshooting tool.
+
+Commands:
+  health                          Cluster health summary (nodes, pods, services, events)
+  diagnose <ns> <pod>             Full pod analysis: exit codes, probes, scheduling, events
+  detect                          Scan cluster for all known issue types
+  suggest                         Dry-run: show what fixes would be applied without acting
+  network                         DNS, service endpoints, ingress, and LoadBalancer status
+  fix           [--dry-run]       Restart failed pods (controller-managed only)
+  cleanup       [--dry-run]       Remove evicted pods
+  dnsfix        [--dry-run]       Restart unhealthy CoreDNS pods
+  scale  <ns> <deploy> <n>  [--dry-run]  Scale a deployment
+  heal          [--dry-run]       Auto-detect issues and apply safe remediations
+  predict                         Heuristic risk score from detected issues
+  optimize                        Cost-optimization hints (pod density, LoadBalancers)
+  chaos  <ns> <selector> [live]   Inject pod failure (default: dry-run; pass 'live' to act)
+  provider                        Detect cloud provider, CNI, pending LoadBalancers
+
+Flags:
+  --dry-run     Preview what a fix command would do without making changes.
 """
 
 import asyncio
@@ -13,6 +31,13 @@ from src.k8s_diagnostics.automation.fixes import AutoFixer
 from src.k8s_diagnostics.automation.chaos import ChaosEngine
 
 
+def _parse_args(argv):
+    """Return (positional_args, flags) where flags is a set of --flag strings."""
+    positional = [a for a in argv if not a.startswith("--")]
+    flags = {a for a in argv if a.startswith("--")}
+    return positional, flags
+
+
 class DiagnosticsCLI:
     def __init__(self):
         self.k8s = K8sClient()
@@ -21,100 +46,227 @@ class DiagnosticsCLI:
         self.chaos = ChaosEngine(self.k8s)
         self.k8s.fixer = self.fixer
 
+    # ─── Read-only commands ─────────────────────────────────────
+
     def health(self):
-        result = self.k8s.get_cluster_health()
-        print(json.dumps(result, indent=2))
+        print(json.dumps(self.k8s.get_cluster_health(), indent=2))
 
     async def diagnose_pod(self, namespace, pod_name):
+        """Full pod diagnosis: exit codes, probes, scheduling analysis, events."""
         result = await self.diagnostics.diagnose_pod(namespace, pod_name)
         print(json.dumps(result, indent=2))
 
     async def network_check(self):
-        result = await self.diagnostics.check_network()
-        print(json.dumps(result, indent=2))
+        print(json.dumps(await self.diagnostics.check_network(), indent=2))
 
     async def detect_issues(self):
-        result = await self.diagnostics.detect_common_issues()
-        print(json.dumps(result, indent=2))
-
-    async def fix_failed_pods(self):
-        result = await self.fixer.restart_failed_pods()
-        print(json.dumps(result, indent=2))
-
-    async def cleanup_evicted(self):
-        result = await self.fixer.cleanup_evicted_pods()
-        print(json.dumps(result, indent=2))
-
-    async def fix_dns(self):
-        result = await self.fixer.fix_dns_issues()
-        print(json.dumps(result, indent=2))
-
-    async def scale(self, namespace, deployment, replicas):
-        result = await self.fixer.scale_resources(namespace, deployment, int(replicas))
-        print(json.dumps(result, indent=2))
+        """Scan entire cluster for known issue types including scheduling breakdowns."""
+        print(json.dumps(await self.diagnostics.detect_common_issues(), indent=2))
 
     async def predict(self):
-        result = await self.diagnostics.predict_risk()
-        print(json.dumps(result, indent=2))
-
-    async def heal(self):
-        result = await self.diagnostics.autonomous_heal()
-        print(json.dumps(result, indent=2))
+        print(json.dumps(await self.diagnostics.predict_risk(), indent=2))
 
     async def optimize(self):
-        result = self.diagnostics.optimize_costs()
+        print(json.dumps(self.diagnostics.optimize_costs(), indent=2))
+
+    async def provider_diag(self):
+        print(json.dumps(self.diagnostics.provider_diagnostics(), indent=2))
+
+    # ─── Gap 6: suggest = detect + dry-run all fixes ────────────
+
+    async def suggest(self):
+        """Show what fixes would be applied without making any changes."""
+        print("Detecting issues...\n", file=sys.stderr)
+        issues_report = await self.diagnostics.detect_common_issues()
+        issues = issues_report.get("issues", [])
+
+        if not issues:
+            print(json.dumps({"status": "no_issues_detected"}, indent=2))
+            return
+
+        suggestions = []
+        for issue in issues:
+            entry = {
+                "issue_type": issue["type"],
+                "severity": issue.get("severity"),
+                "details": issue.get("details") or issue.get("scheduling_analysis"),
+            }
+
+            # Map each detected issue type to its dry-run fix
+            if issue["type"] == "failed_pods":
+                fix = await self.fixer.restart_failed_pods(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "dns_unhealthy":
+                fix = await self.fixer.fix_dns_issues(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "pvc_not_bound":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": "kubectl describe pvc <name> — check StorageClass and provisioner",
+                }
+            elif issue["type"] == "load_balancer_pending":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "Check Azure/AWS LB quota and cloud-controller-manager logs: "
+                        "kubectl logs -n kube-system -l component=cloud-controller-manager"
+                    ),
+                }
+            elif issue["type"] == "image_pull_errors":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe pod <pod> — check Events for 'unauthorized' "
+                        "(missing imagePullSecret) vs 'timeout' (NSG/network issue) vs "
+                        "'manifest unknown' (bad image tag)"
+                    ),
+                }
+            elif issue["type"] == "nodes_not_ready":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe node <node> — check Conditions section; "
+                        "journalctl -u kubelet on the node"
+                    ),
+                }
+            elif issue["type"] == "pending_pods":
+                entry["suggested_fix"] = {
+                    "action": "see_scheduling_analysis",
+                    "hint": (
+                        "Each pending pod's root cause is in scheduling_analysis above. "
+                        "Use 'diagnose <ns> <pod>' for full detail."
+                    ),
+                }
+            elif issue["type"] == "high_restart_count":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "Use 'diagnose <ns> <pod>' to see exit code analysis. "
+                        "Exit 137=OOMKill (raise memory limits), "
+                        "Exit 143=SIGTERM (fix liveness probe initialDelaySeconds)"
+                    ),
+                }
+            elif issue["type"] == "probe_failures":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "Use 'diagnose <ns> <pod>' to get per-container probe analysis "
+                        "showing mismatched ports, wrong paths, and low initialDelaySeconds"
+                    ),
+                }
+            else:
+                entry["suggested_fix"] = {"action": "no_automated_fix", "hint": str(issue)}
+
+            suggestions.append(entry)
+
+        print(json.dumps({
+            "mode": "dry_run_suggest",
+            "issues_found": len(issues),
+            "suggestions": suggestions,
+            "timestamp": issues_report.get("timestamp"),
+        }, indent=2))
+
+    # ─── Mutating commands (all support --dry-run) ──────────────
+
+    async def fix_failed_pods(self, dry_run: bool = False):
+        result = await self.fixer.restart_failed_pods(dry_run=dry_run)
+        print(json.dumps(result, indent=2))
+
+    async def cleanup_evicted(self, dry_run: bool = False):
+        result = await self.fixer.cleanup_evicted_pods(dry_run=dry_run)
+        print(json.dumps(result, indent=2))
+
+    async def fix_dns(self, dry_run: bool = False):
+        result = await self.fixer.fix_dns_issues(dry_run=dry_run)
+        print(json.dumps(result, indent=2))
+
+    async def scale(self, namespace, deployment, replicas, dry_run: bool = False):
+        result = await self.fixer.scale_resources(
+            namespace, deployment, int(replicas), dry_run=dry_run
+        )
+        print(json.dumps(result, indent=2))
+
+    async def heal(self, dry_run: bool = False):
+        result = await self.fixer.auto_remediate(self.diagnostics, dry_run=dry_run)
         print(json.dumps(result, indent=2))
 
     async def chaos_inject(self, namespace, selector, dry_run=True):
         result = await self.chaos.inject_pod_failure(namespace, selector, dry_run)
         print(json.dumps(result, indent=2))
 
-    async def provider_diag(self):
-        result = self.diagnostics.provider_diagnostics()
-        print(json.dumps(result, indent=2))
+
+def _usage():
+    print(__doc__)
+    sys.exit(1)
 
 
 def main():
-    cli = DiagnosticsCLI()
-
     if len(sys.argv) < 2:
-        print("Usage: python k8s-diagnostics-cli.py [health|diagnose|network|detect|fix|cleanup|dnsfix|scale|predict|heal|optimize|chaos|provider]")
-        sys.exit(1)
+        _usage()
 
-    command = sys.argv[1]
+    args, flags = _parse_args(sys.argv[1:])
+    dry_run = "--dry-run" in flags
+    command = args[0] if args else ""
+
+    cli = DiagnosticsCLI()
 
     if command == "health":
         cli.health()
-    elif command == "diagnose" and len(sys.argv) >= 4:
-        asyncio.run(cli.diagnose_pod(sys.argv[2], sys.argv[3]))
+
+    elif command == "diagnose":
+        if len(args) < 3:
+            print("Usage: diagnose <namespace> <pod-name>")
+            sys.exit(1)
+        asyncio.run(cli.diagnose_pod(args[1], args[2]))
+
     elif command == "network":
         asyncio.run(cli.network_check())
+
     elif command == "detect":
         asyncio.run(cli.detect_issues())
+
+    # Gap 6: suggest command
+    elif command == "suggest":
+        asyncio.run(cli.suggest())
+
     elif command == "fix":
-        asyncio.run(cli.fix_failed_pods())
+        asyncio.run(cli.fix_failed_pods(dry_run=dry_run))
+
     elif command == "cleanup":
-        asyncio.run(cli.cleanup_evicted())
+        asyncio.run(cli.cleanup_evicted(dry_run=dry_run))
+
     elif command == "dnsfix":
-        asyncio.run(cli.fix_dns())
-    elif command == "scale" and len(sys.argv) >= 5:
-        asyncio.run(cli.scale(sys.argv[2], sys.argv[3], sys.argv[4]))
+        asyncio.run(cli.fix_dns(dry_run=dry_run))
+
+    elif command == "scale":
+        if len(args) < 4:
+            print("Usage: scale <namespace> <deployment> <replicas> [--dry-run]")
+            sys.exit(1)
+        asyncio.run(cli.scale(args[1], args[2], args[3], dry_run=dry_run))
+
     elif command == "predict":
         asyncio.run(cli.predict())
+
     elif command == "heal":
-        asyncio.run(cli.heal())
+        asyncio.run(cli.heal(dry_run=dry_run))
+
     elif command == "optimize":
         asyncio.run(cli.optimize())
-    elif command == "chaos" and len(sys.argv) >= 4:
-        dry = True
-        if len(sys.argv) >= 5 and sys.argv[4].lower() == "false":
-            dry = False
-        asyncio.run(cli.chaos_inject(sys.argv[2], sys.argv[3], dry))
+
+    elif command == "chaos":
+        if len(args) < 3:
+            print("Usage: chaos <namespace> <label-selector> [live]")
+            sys.exit(1)
+        # Default to dry-run; pass 'live' as 4th arg to act for real
+        live = len(args) >= 4 and args[3].lower() == "live"
+        asyncio.run(cli.chaos_inject(args[1], args[2], dry_run=not live))
+
     elif command == "provider":
         asyncio.run(cli.provider_diag())
+
     else:
-        print("Invalid command or missing arguments")
-        sys.exit(1)
+        print(f"Unknown command: '{command}'")
+        _usage()
 
 
 if __name__ == "__main__":
