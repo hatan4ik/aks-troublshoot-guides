@@ -1,3 +1,4 @@
+# Core — required for all CLI commands
 kubernetes==28.1.0
 fastapi==0.104.1
 uvicorn==0.24.0
@@ -5,3 +6,28 @@ pydantic==2.5.0
 aiofiles==23.2.1
 prometheus-client==0.19.0
 requests==2.31.0
+
+# Optional — TLS certificate expiry check
+# cryptography>=41.0.0
+
+# Optional — AKS (Azure) provider checks
+# pip install azure-identity azure-mgmt-network azure-mgmt-compute
+#             azure-mgmt-containerservice azure-mgmt-authorization
+#             azure-mgmt-privatedns
+# azure-identity>=1.15.0
+# azure-mgmt-network>=25.0.0
+# azure-mgmt-compute>=30.0.0
+# azure-mgmt-containerservice>=28.0.0
+# azure-mgmt-authorization>=4.0.0
+# azure-mgmt-privatedns>=1.0.0
+
+# Optional — EKS (AWS) provider checks
+# pip install boto3
+# boto3>=1.34.0
+
+# Optional — GKE (GCP) provider checks
+# pip install google-cloud-container google-cloud-compute google-auth
+#             google-api-python-client
+# google-cloud-container>=2.40.0
+# google-auth>=2.26.0
+# google-api-python-client>=2.115.0

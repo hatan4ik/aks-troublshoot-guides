@@ -1,5 +1,14 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+NAMESPACE="practice"
+MANIFESTS=(
+  "practice/01-image-pull-backoff.yaml"
+  "practice/05-missing-configmap-key.yaml"
+  "practice/11-ingress-wrong-service.yaml"
+  "practice/15-liveness-kills-healthy-app.yaml"
+  "practice/03-selector-mismatch.yaml"
+)
 
 echo "🚀 Welcome to the Chaos Sandbox..."
 echo "📦 Starting up or using existing local cluster context..."
@@ -11,13 +20,19 @@ if ! kubectl get nodes >/dev/null 2>&1; then
     exit 1
 fi
 
+if ! kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
+    echo "🧱 Creating namespace '${NAMESPACE}'..."
+    kubectl create namespace "${NAMESPACE}" >/dev/null
+fi
+
 echo "🧨 Injecting Chaos..."
-# We apply 5 random broken manifests from the practice directory to simulate a major cluster event
-kubectl apply -f practice/01-image-pull-backoff.yaml
-kubectl apply -f practice/05-missing-configmap-key.yaml
-kubectl apply -f practice/11-ingress-wrong-service.yaml
-kubectl apply -f practice/15-liveness-kills-healthy-app.yaml
-kubectl apply -f practice/03-selector-mismatch.yaml
+# Apply a small bundle of intentionally broken manifests into the practice namespace.
+for manifest in "${MANIFESTS[@]}"; do
+    if ! kubectl apply -f "${manifest}"; then
+        echo "❌ Failed while applying ${manifest}"
+        exit 1
+    fi
+done
 
 echo "💥 Chaos injected!"
 echo ""

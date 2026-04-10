@@ -77,6 +77,17 @@ class DiagnosticsCLI:
     async def provider_diag(self):
         print(json.dumps(self.diagnostics.provider_diagnostics(), indent=2))
 
+    async def provider_check(self):
+        """Run provider-specific cloud infrastructure checks (AKS/EKS/GKE)."""
+        from src.k8s_diagnostics.providers.detector import detect_provider, run_provider_checks
+        provider = detect_provider(self.k8s)
+        issues = run_provider_checks(self.k8s)
+        print(json.dumps({
+            "provider": provider or "unknown",
+            "issues_found": len([i for i in issues if i.get("severity") != "info"]),
+            "issues": issues,
+        }, indent=2))
+
     # ─── Gap 6: suggest = detect + dry-run all fixes ────────────
 
     async def suggest(self):
@@ -268,6 +279,13 @@ class DiagnosticsCLI:
                         "New nodes may need labels: kubectl label node <node> <key>=<value>"
                     ),
                 }
+            elif issue.get("layer") == "layer5" or issue.get("provider"):
+                # Provider-layer issue — the suggested_action from the detector is the hint
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "provider": issue.get("provider", "unknown"),
+                    "hint": issue.get("suggested_action", "See detail above"),
+                }
             else:
                 entry["suggested_fix"] = {"action": "no_automated_fix", "hint": str(issue)}
 
@@ -398,6 +416,9 @@ def main():
 
     elif command == "provider":
         asyncio.run(cli.provider_diag())
+
+    elif command == "provider-check":
+        asyncio.run(cli.provider_check())
 
     else:
         print(f"Unknown command: '{command}'")

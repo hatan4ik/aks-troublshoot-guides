@@ -1,2 +1,12 @@
-# Local editor settings
-.vscode/settings.json
+# Local editor and assistant settings
+.vscode/
+.claude/
+.gemini/
+
+# Local tooling state
+.venv/
+.trunk/
+
+# Python cache artifacts
+__pycache__/
+*.py[cod]

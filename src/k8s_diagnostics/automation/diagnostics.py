@@ -771,6 +771,20 @@ class DiagnosticsEngine:
                 "hint": "kubectl describe ds <name> -n <ns> — check nodeSelector and tolerations; new nodes may need labels",
             })
 
+        # Phase 2: cloud provider layer (AKS/EKS/GKE)
+        try:
+            from ..providers.detector import run_provider_checks
+            provider_issues = run_provider_checks(self.k8s)
+            # Filter out info-level SDK-unavailable notices unless everything else is clean
+            actionable = [i for i in provider_issues if i.get("severity") != "info"]
+            info_only = [i for i in provider_issues if i.get("severity") == "info"]
+            issues.extend(actionable)
+            # Append info notices only when no other issues were found (avoids noise)
+            if not issues and info_only:
+                issues.extend(info_only)
+        except Exception:
+            pass  # provider layer must never crash detect_common_issues()
+
         return {"issues": issues, "timestamp": datetime.now().isoformat()}
 
     def _find_probe_failures(self, pods: List[V1Pod]) -> List[str]:
