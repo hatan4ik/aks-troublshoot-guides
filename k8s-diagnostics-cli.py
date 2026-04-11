@@ -164,6 +164,38 @@ class DiagnosticsCLI:
             elif issue["type"] == "aggressive_liveness_probe":
                 fix = await self.fixer.fix_aggressive_liveness_probes(dry_run=True)
                 entry["suggested_fix"] = fix
+            elif issue["type"] == "gitops_controller_unhealthy":
+                fix = await self.fixer.restart_unhealthy_gitops_controllers(dry_run=True)
+                entry["suggested_fix"] = fix
+            elif issue["type"] == "gitops_crd_missing":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "Reapply the GitOps controller install manifests. "
+                        "For Argo CD CRD annotation errors, use: "
+                        "kubectl apply --server-side --force-conflicts -n argocd "
+                        "-f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
+                    ),
+                }
+            elif issue["type"] == "argocd_application_unhealthy":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe application <name> -n <ns>; "
+                        "inspect repo/auth/path errors, then fix Git or sync/revert in Argo CD. "
+                        "The CLI does not patch Application state because Git should remain the source of truth."
+                    ),
+                }
+            elif issue["type"] == "flux_resource_not_ready":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "kubectl describe gitrepository <name> -n <ns> "
+                        "(or describe the affected kustomization/helmrelease); "
+                        "fix source auth, path, dependency, or Helm values in Git, then reconcile. "
+                        "The CLI does not patch Flux custom resources because Git should remain the source of truth."
+                    ),
+                }
             elif issue["type"] == "pvc_not_bound":
                 entry["suggested_fix"] = {
                     "action": "manual_required",

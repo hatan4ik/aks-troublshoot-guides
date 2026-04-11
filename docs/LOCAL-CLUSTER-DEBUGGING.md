@@ -199,3 +199,6 @@ Use these repo tools for application-level debugging after the local platform is
 - [DEBUG-RUNBOOK.md](../DEBUG-RUNBOOK.md)
 - [LIVE-DEBUG-WORKFLOW.md](./LIVE-DEBUG-WORKFLOW.md)
 - [playbooks/common-issues.md](../playbooks/common-issues.md)
+
+Use this guide for optional local GitOps controllers on Minikube:
+- [GITOPS-MINIKUBE-INSTALL.md](./GITOPS-MINIKUBE-INSTALL.md)

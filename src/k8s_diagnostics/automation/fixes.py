@@ -806,6 +806,94 @@ class AutoFixer:
 
         return results
 
+    async def restart_unhealthy_gitops_controllers(self, dry_run: bool = False) -> Dict:
+        """Restart unhealthy Argo CD / Flux controller pods when a controller will recreate them."""
+        results: Dict = self._new_results(
+            dry_run,
+            action="none",
+            restarted=[],
+            skipped=[],
+            failed=[],
+            status="ok",
+        )
+        pods = self.k8s.v1.list_pod_for_all_namespaces().items
+        candidates = []
+
+        for pod in pods:
+            if pod.metadata.namespace not in ("argocd", "flux-system"):
+                continue
+            if pod.metadata.deletion_timestamp:
+                continue
+            if pod.status.phase == "Succeeded":
+                continue
+            if pod.status.phase == "Running" and self._pod_ready(pod):
+                continue
+            candidates.append(pod)
+
+        if not candidates:
+            return results
+
+        results["action"] = "restart_gitops_controller_pods"
+        for pod in candidates:
+            ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
+            reason = self._pod_waiting_reason(pod) or f"phase={pod.status.phase}, ready={self._pod_ready(pod)}"
+
+            if not self._has_controller(pod):
+                results["skipped"].append(f"{ref} (no controller owner — manual intervention required)")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="skipped",
+                    action="restart_gitops_controller_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": f"{reason}; pod has no ownerReferences"},
+                )
+                continue
+
+            if dry_run:
+                results["restarted"].append(f"[DRY-RUN] would delete pod {ref}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="restart_gitops_controller_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": reason},
+                )
+                continue
+
+            try:
+                self.k8s.v1.delete_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+                results["restarted"].append(ref)
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="restart_gitops_controller_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": reason},
+                )
+            except ApiException as e:
+                results["failed"].append(f"{ref}: {str(e)}")
+                results["status"] = "error"
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="failed",
+                    action="restart_gitops_controller_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": reason},
+                    error=str(e),
+                )
+
+        return results
+
     async def scale_resources(
         self, namespace: str, deployment: str, replicas: int, dry_run: bool = False
     ) -> Dict:
@@ -904,6 +992,9 @@ class AutoFixer:
             elif issue["type"] == "aggressive_liveness_probe":
                 result = await self.fix_aggressive_liveness_probes(dry_run=dry_run)
                 actions.append({"issue": "aggressive_liveness_probe", "result": result})
+            elif issue["type"] == "gitops_controller_unhealthy":
+                result = await self.restart_unhealthy_gitops_controllers(dry_run=dry_run)
+                actions.append({"issue": "gitops_controller_unhealthy", "result": result})
 
         return {
             "dry_run": dry_run,

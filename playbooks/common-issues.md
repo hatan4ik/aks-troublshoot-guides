@@ -242,6 +242,34 @@ kubectl get pods --show-labels
 
 ## 🔄 Deployment Issues (P2/P3)
 
+### GitOps Controller / Sync Issues
+**Symptoms**: Argo CD Applications are `OutOfSync` or `Degraded`, Flux resources show `Ready=False`, or GitOps controller pods in `argocd` / `flux-system` are not ready
+**Common Causes**:
+- Repository URL, branch, path, or credentials are wrong
+- Helm chart version or values are invalid
+- Kustomize build fails or a required CRD is missing
+- Admission/RBAC policy rejects the rendered manifests
+- Argo CD and Flux reconcile the same resources and fight each other
+
+**Diagnosis**:
+```bash
+./scripts/diagnostics/gitops-diagnostics.sh
+python3 ./k8s-diagnostics-cli.py detect
+python3 ./k8s-diagnostics-cli.py suggest
+kubectl get applications -A
+kubectl get gitrepositories,kustomizations,helmreleases -A
+kubectl get pods -n argocd
+kubectl get pods -n flux-system
+```
+
+**Resolution**:
+1. Fix source, path, credentials, Helm values, or rendered manifests in Git first
+2. For unhealthy controller pods, run `python3 ./k8s-diagnostics-cli.py heal --dry-run` before `heal`
+3. For missing Argo CD CRDs with annotation-size errors, reapply Argo CD with server-side apply
+4. Do not patch Argo CD Applications or Flux resources directly unless this is an emergency and you accept temporary drift
+
+---
+
 ### Rolling Update Stuck
 **Symptoms**: Deployments not progressing during updates
 **Common Causes**:

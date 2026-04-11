@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 from datetime import datetime
 from kubernetes.client import V1Pod
+from kubernetes.client.rest import ApiException
 
 try:
     from ..analysis.pattern_matcher import match_events, match_log_lines, format_match
@@ -712,6 +713,46 @@ class DiagnosticsEngine:
                 "details": aggressive_liveness[:5],
             })
 
+        gitops_controller_issues = self._detect_gitops_controller_issues(active_pods)
+        if gitops_controller_issues:
+            issues.append({
+                "type": "gitops_controller_unhealthy",
+                "severity": "high",
+                "count": len(gitops_controller_issues),
+                "details": gitops_controller_issues[:10],
+                "hint": "kubectl get pods -n argocd; kubectl get pods -n flux-system",
+            })
+
+        gitops_crd_issues = self._detect_gitops_crd_issues()
+        if gitops_crd_issues:
+            issues.append({
+                "type": "gitops_crd_missing",
+                "severity": "high",
+                "count": len(gitops_crd_issues),
+                "details": gitops_crd_issues[:10],
+                "hint": "Reinstall the controller manifests; use server-side apply for large Argo CD CRDs.",
+            })
+
+        argocd_issues = self._detect_argocd_application_issues()
+        if argocd_issues:
+            issues.append({
+                "type": "argocd_application_unhealthy",
+                "severity": "medium",
+                "count": len(argocd_issues),
+                "details": argocd_issues[:10],
+                "hint": "kubectl get applications -A; kubectl describe application <name> -n <ns>",
+            })
+
+        flux_issues = self._detect_flux_resource_issues()
+        if flux_issues:
+            issues.append({
+                "type": "flux_resource_not_ready",
+                "severity": "medium",
+                "count": len(flux_issues),
+                "details": flux_issues[:10],
+                "hint": "kubectl get gitrepositories,kustomizations,helmreleases -A; describe the NotReady object.",
+            })
+
         # Warning events cluster-wide (last 1 hour)
         active_warning_events = self._active_warning_events(active_pods)
         warning_events = self._format_warning_events(active_warning_events)
@@ -992,6 +1033,15 @@ class DiagnosticsEngine:
     # Pressure condition types that indicate the node is under stress.
     # Ready=False is already handled above; these are the *additional* conditions.
     _PRESSURE_CONDITIONS = ("MemoryPressure", "DiskPressure", "PIDPressure", "NetworkUnavailable")
+    _GITOPS_NAMESPACES = ("argocd", "flux-system")
+
+    _FLUX_RESOURCE_CHECKS = (
+        ("source.toolkit.fluxcd.io", ("v1", "v1beta2"), "gitrepositories", "GitRepository"),
+        ("source.toolkit.fluxcd.io", ("v1", "v1beta2"), "helmrepositories", "HelmRepository"),
+        ("source.toolkit.fluxcd.io", ("v1", "v1beta2"), "ocirepositories", "OCIRepository"),
+        ("kustomize.toolkit.fluxcd.io", ("v1", "v1beta2"), "kustomizations", "Kustomization"),
+        ("helm.toolkit.fluxcd.io", ("v2", "v2beta2", "v2beta1"), "helmreleases", "HelmRelease"),
+    )
 
     def _check_node_pressure(self, node_items) -> List[str]:
         """Return list of '<node>: <condition>' strings for nodes under pressure."""
@@ -1062,6 +1112,142 @@ class DiagnosticsEngine:
             return False
         statuses = pod.status.container_statuses or []
         return bool(statuses) and all(cs.ready for cs in statuses)
+
+    def _detect_gitops_controller_issues(self, pods: List[V1Pod]) -> List[str]:
+        issues = []
+        for pod in pods:
+            if pod.metadata.namespace not in self._GITOPS_NAMESPACES:
+                continue
+            if self._pod_is_ready(pod):
+                continue
+
+            waiting_reasons = []
+            for cs in pod.status.container_statuses or []:
+                if cs.state and cs.state.waiting and cs.state.waiting.reason:
+                    waiting_reasons.append(f"{cs.name}:{cs.state.waiting.reason}")
+                elif not cs.ready:
+                    waiting_reasons.append(f"{cs.name}:not-ready")
+
+            reason = ", ".join(waiting_reasons) if waiting_reasons else "pod not ready"
+            issues.append(
+                f"{pod.metadata.namespace}/{pod.metadata.name}: "
+                f"phase={pod.status.phase}, reason={reason}"
+            )
+        return issues
+
+    def _detect_gitops_crd_issues(self) -> List[str]:
+        issues = []
+        if self._namespace_exists("argocd") and not self._custom_resource_exists(
+            "argoproj.io", "v1alpha1", "applications"
+        ):
+            issues.append(
+                "argocd namespace exists but Application CRD is missing; "
+                "reapply Argo CD with server-side apply if CRD annotations are too large"
+            )
+
+        if self._namespace_exists("flux-system") and not self._any_custom_resource_exists(
+            "kustomize.toolkit.fluxcd.io", ("v1", "v1beta2"), "kustomizations"
+        ):
+            issues.append(
+                "flux-system namespace exists but Flux Kustomization CRD is missing; "
+                "reapply the Flux install manifest"
+            )
+        return issues
+
+    def _detect_argocd_application_issues(self) -> List[str]:
+        apps, error = self._list_cluster_custom_objects(
+            "argoproj.io", "v1alpha1", "applications"
+        )
+        if error or not apps:
+            return []
+
+        issues = []
+        for app in apps:
+            status = app.get("status", {})
+            sync_status = (status.get("sync") or {}).get("status")
+            health_status = (status.get("health") or {}).get("status")
+            conditions = status.get("conditions") or []
+            ref = self._custom_object_ref(app, "Application")
+
+            unhealthy = []
+            if sync_status and sync_status != "Synced":
+                unhealthy.append(f"sync={sync_status}")
+            if health_status in ("Degraded", "Missing", "Unknown", "Suspended"):
+                unhealthy.append(f"health={health_status}")
+            for condition in conditions:
+                condition_type = condition.get("type")
+                message = condition.get("message") or condition.get("reason") or ""
+                if condition_type:
+                    unhealthy.append(f"{condition_type}: {message[:120]}")
+
+            if unhealthy:
+                issues.append(f"{ref}: {', '.join(unhealthy)}")
+        return issues
+
+    def _detect_flux_resource_issues(self) -> List[str]:
+        issues = []
+        for group, versions, plural, kind in self._FLUX_RESOURCE_CHECKS:
+            objects = []
+            for version in versions:
+                items, error = self._list_cluster_custom_objects(group, version, plural)
+                if error:
+                    continue
+                objects = items
+                break
+
+            for obj in objects:
+                ready = self._ready_condition(obj)
+                if not ready or ready.get("status") == "True":
+                    continue
+                ref = self._custom_object_ref(obj, kind)
+                reason = ready.get("reason") or "not ready"
+                message = (ready.get("message") or "")[:160]
+                issues.append(f"{ref}: Ready={ready.get('status')} — {reason}: {message}")
+        return issues
+
+    def _list_cluster_custom_objects(self, group: str, version: str, plural: str):
+        try:
+            result = self.k8s.metrics.list_cluster_custom_object(group, version, plural)
+            return result.get("items", []), None
+        except ApiException as e:
+            if e.status == 404:
+                return [], e
+            return [], e
+        except Exception as e:
+            return [], e
+
+    def _custom_resource_exists(self, group: str, version: str, plural: str) -> bool:
+        _, error = self._list_cluster_custom_objects(group, version, plural)
+        if error is None:
+            return True
+        if isinstance(error, ApiException) and error.status == 404:
+            return False
+        return True
+
+    def _any_custom_resource_exists(self, group: str, versions: tuple, plural: str) -> bool:
+        return any(self._custom_resource_exists(group, version, plural) for version in versions)
+
+    def _namespace_exists(self, namespace: str) -> bool:
+        try:
+            self.k8s.v1.read_namespace(namespace)
+            return True
+        except ApiException as e:
+            if e.status == 404:
+                return False
+            return False
+        except Exception:
+            return False
+
+    def _ready_condition(self, obj: Dict) -> Optional[Dict]:
+        for condition in (obj.get("status", {}).get("conditions") or []):
+            if condition.get("type") == "Ready":
+                return condition
+        return None
+
+    def _custom_object_ref(self, obj: Dict, kind: str) -> str:
+        metadata = obj.get("metadata", {})
+        namespace = metadata.get("namespace") or "cluster"
+        return f"{kind}/{namespace}/{metadata.get('name', 'unknown')}"
 
     def _check_component_health(self) -> List[str]:
         """Check control plane components via the ComponentStatus API.
@@ -1442,6 +1628,9 @@ class DiagnosticsEngine:
             if issue["type"] == "aggressive_liveness_probe":
                 result = await self.k8s.fixer.fix_aggressive_liveness_probes()
                 actions.append({"issue": "aggressive_liveness_probe", "result": result})
+            if issue["type"] == "gitops_controller_unhealthy":
+                result = await self.k8s.fixer.restart_unhealthy_gitops_controllers()
+                actions.append({"issue": "gitops_controller_unhealthy", "result": result})
         return {
             "actions": actions,
             "issues": issues.get("issues", []),
