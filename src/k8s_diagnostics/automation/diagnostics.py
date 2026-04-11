@@ -713,7 +713,8 @@ class DiagnosticsEngine:
             })
 
         # Warning events cluster-wide (last 1 hour)
-        warning_events = self._check_warning_events(active_pods)
+        active_warning_events = self._active_warning_events(active_pods)
+        warning_events = self._format_warning_events(active_warning_events)
         if warning_events:
             issues.append({
                 "type": "warning_events",
@@ -836,13 +837,10 @@ class DiagnosticsEngine:
 
         # 5-layer pattern analysis on cluster Warning events
         pattern_matches: List[Dict] = []
-        if _PM_AVAILABLE:
+        if _PM_AVAILABLE and active_warning_events:
             try:
-                warn_events = self.k8s.v1.list_event_for_all_namespaces(
-                    field_selector="type=Warning"
-                )
                 pattern_matches = [
-                    format_match(pm) for pm in match_events(warn_events.items)
+                    format_match(pm) for pm in match_events(active_warning_events)
                 ]
             except Exception:
                 pass
@@ -1004,11 +1002,11 @@ class DiagnosticsEngine:
                     pressured.append(f"{node.metadata.name}: {condition.type} ({condition.message or 'no message'})")
         return pressured
 
-    def _check_warning_events(self, active_pods: List[V1Pod] = None) -> List[str]:
+    def _active_warning_events(self, active_pods: List[V1Pod] = None) -> List:
         """Return deduplicated Warning events from the last hour across all namespaces.
 
-        Each entry is: '<namespace>/<object> — <reason>: <message>'
         Skips events with no timestamp (pre-existing, already-flushed events).
+        Skips pod events when the pod no longer exists or is already fully ready.
         """
         try:
             events = self.k8s.v1.list_event_for_all_namespaces(
@@ -1046,6 +1044,14 @@ class DiagnosticsEngine:
             if key in seen:
                 continue
             seen.add(key)
+            results.append(e)
+        return results
+
+    def _format_warning_events(self, events: List) -> List[str]:
+        """Format active Warning events as '<namespace>/<object> — <reason>: <message>'."""
+        results = []
+        for e in events:
+            involved = e.involved_object
             ns = involved.namespace or "cluster"
             msg = (e.message or "")[:120]
             results.append(f"{ns}/{involved.name} — {e.reason}: {msg}")

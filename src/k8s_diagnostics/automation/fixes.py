@@ -1,4 +1,5 @@
 import difflib
+import json
 from typing import Dict, List, Optional
 
 from kubernetes.client.rest import ApiException
@@ -8,14 +9,48 @@ class AutoFixer:
     def __init__(self, k8s_client):
         self.k8s = k8s_client
 
+    def _new_results(self, dry_run: bool, **fields) -> Dict:
+        results = {"dry_run": dry_run, "operations": []}
+        results.update(fields)
+        return results
+
+    def _record_operation(
+        self,
+        results: Dict,
+        *,
+        dry_run: bool,
+        action: str,
+        resource: str,
+        api_call: str,
+        kubectl_equivalent: str,
+        change: Optional[Dict] = None,
+        status: Optional[str] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        operation = {
+            "status": status or ("planned" if dry_run else "applied"),
+            "action": action,
+            "resource": resource,
+            "api_call": api_call,
+            "kubectl_equivalent": kubectl_equivalent,
+        }
+        if change is not None:
+            operation["change"] = change
+        if error is not None:
+            operation["error"] = error
+        results["operations"].append(operation)
+
+    def _json_arg(self, payload: Dict) -> str:
+        return json.dumps(payload, separators=(",", ":"))
+
     async def restart_failed_pods(self, dry_run: bool = False) -> Dict:
         """Delete failed or crashlooping pods so their controller can recreate them."""
-        results: Dict = {
-            "dry_run": dry_run,
-            "restarted": [],
-            "skipped": [],
-            "failed": [],
-        }
+        results: Dict = self._new_results(
+            dry_run,
+            restarted=[],
+            skipped=[],
+            failed=[],
+        )
 
         pods = self.k8s.v1.list_pod_for_all_namespaces()
         candidates = [
@@ -29,23 +64,61 @@ class AutoFixer:
             ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
             if not self._has_controller(pod):
                 results["skipped"].append(f"{ref} (no controller — manual intervention required)")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="skipped",
+                    action="delete_pod_for_controller_recreate",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": "pod has no ownerReferences; deletion may not recreate it"},
+                )
                 continue
 
             if dry_run:
                 results["restarted"].append(f"[DRY-RUN] would delete pod {ref}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="delete_pod_for_controller_recreate",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": "controller-owned failed/crashlooping pod"},
+                )
                 continue
 
             try:
                 self.k8s.v1.delete_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
                 results["restarted"].append(ref)
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="delete_pod_for_controller_recreate",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": "controller-owned failed/crashlooping pod"},
+                )
             except ApiException as e:
                 results["failed"].append(f"{ref}: {str(e)}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="failed",
+                    action="delete_pod_for_controller_recreate",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    error=str(e),
+                )
 
         return results
 
     async def cleanup_evicted_pods(self, dry_run: bool = False) -> Dict:
         """Remove evicted pods that are clogging namespace views."""
-        results: Dict = {"dry_run": dry_run, "cleaned": [], "failed": []}
+        results: Dict = self._new_results(dry_run, cleaned=[], failed=[])
 
         pods = self.k8s.v1.list_pod_for_all_namespaces()
         evicted = [
@@ -56,23 +129,51 @@ class AutoFixer:
             ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
             if dry_run:
                 results["cleaned"].append(f"[DRY-RUN] would delete evicted pod {ref}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="delete_evicted_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": "pod status reason is Evicted"},
+                )
                 continue
             try:
                 self.k8s.v1.delete_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
                 results["cleaned"].append(ref)
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="delete_evicted_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": "pod status reason is Evicted"},
+                )
             except ApiException as e:
                 results["failed"].append(f"{ref}: {str(e)}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="failed",
+                    action="delete_evicted_pod",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    error=str(e),
+                )
 
         return results
 
     async def fix_dns_issues(self, dry_run: bool = False) -> Dict:
         """Restart unhealthy CoreDNS pods."""
-        results: Dict = {
-            "dry_run": dry_run,
-            "action": "none",
-            "restarted": [],
-            "status": "ok",
-        }
+        results: Dict = self._new_results(
+            dry_run,
+            action="none",
+            restarted=[],
+            status="ok",
+        )
 
         dns_pods = self.k8s.v1.list_namespaced_pod(
             "kube-system", label_selector="k8s-app=kube-dns"
@@ -89,18 +190,46 @@ class AutoFixer:
             ref = pod.metadata.name
             if dry_run:
                 results["restarted"].append(f"[DRY-RUN] would restart CoreDNS pod {ref}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="restart_coredns_pod",
+                    resource=f"pod/kube-system/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {ref} -n kube-system",
+                    change={"reason": "CoreDNS pod is not running or not ready"},
+                )
                 continue
             try:
                 self.k8s.v1.delete_namespaced_pod(ref, "kube-system")
                 results["restarted"].append(ref)
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="restart_coredns_pod",
+                    resource=f"pod/kube-system/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {ref} -n kube-system",
+                    change={"reason": "CoreDNS pod is not running or not ready"},
+                )
             except ApiException as e:
                 results["status"] = f"error: {str(e)}"
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="failed",
+                    action="restart_coredns_pod",
+                    resource=f"pod/kube-system/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {ref} -n kube-system",
+                    error=str(e),
+                )
 
         return results
 
     async def fix_image_pull_errors(self, dry_run: bool = False) -> Dict:
         """Patch known safe image replacements for bundled practice scenarios."""
-        results: Dict = {"dry_run": dry_run, "patched": [], "skipped": [], "failed": []}
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
         pods = self.k8s.v1.list_pod_for_all_namespaces().items
 
         for pod in pods:
@@ -132,9 +261,27 @@ class AutoFixer:
                 continue
 
             for container, current, replacement in changes:
+                ref = f"{deployment.metadata.namespace}/{deployment.metadata.name}"
+                kubectl_cmd = (
+                    f"kubectl set image deployment/{deployment.metadata.name} "
+                    f"{container.name}={replacement} -n {deployment.metadata.namespace}"
+                )
                 if dry_run:
                     results["patched"].append(
                         f"[DRY-RUN] would patch image on {deployment.metadata.namespace}/{deployment.metadata.name}: {current} -> {replacement}"
+                    )
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_deployment_image",
+                        resource=f"deployment/{ref}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=kubectl_cmd,
+                        change={
+                            "field": f"spec.template.spec.containers[{container.name}].image",
+                            "from": current,
+                            "to": replacement,
+                        },
                     )
                 else:
                     container.image = replacement
@@ -149,19 +296,58 @@ class AutoFixer:
                     deployment,
                 )
                 for _, current, replacement in changes:
+                    container_name = next(
+                        container.name for container, old, new in changes
+                        if old == current and new == replacement
+                    )
                     results["patched"].append(
                         f"{deployment.metadata.namespace}/{deployment.metadata.name}: {current} -> {replacement}"
+                    )
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_deployment_image",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=(
+                            f"kubectl set image deployment/{deployment.metadata.name} "
+                            f"{container_name}={replacement} -n {deployment.metadata.namespace}"
+                        ),
+                        change={
+                            "field": f"spec.template.spec.containers[{container_name}].image",
+                            "from": current,
+                            "to": replacement,
+                        },
                     )
             except ApiException as e:
                 results["failed"].append(
                     f"{deployment.metadata.namespace}/{deployment.metadata.name}: {str(e)}"
                 )
+                for container, current, replacement in changes:
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        status="failed",
+                        action="patch_deployment_image",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=(
+                            f"kubectl set image deployment/{deployment.metadata.name} "
+                            f"{container.name}={replacement} -n {deployment.metadata.namespace}"
+                        ),
+                        change={
+                            "field": f"spec.template.spec.containers[{container.name}].image",
+                            "from": current,
+                            "to": replacement,
+                        },
+                        error=str(e),
+                    )
 
         return results
 
     async def fix_service_selector_mismatches(self, dry_run: bool = False) -> Dict:
         """Patch Services with empty endpoints to match their same-name Deployment selector."""
-        results: Dict = {"dry_run": dry_run, "patched": [], "skipped": [], "failed": []}
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
         services = self.k8s.v1.list_service_for_all_namespaces().items
         endpoints = {
             (ep.metadata.namespace, ep.metadata.name): ep
@@ -195,6 +381,18 @@ class AutoFixer:
                 results["patched"].append(
                     f"[DRY-RUN] would patch selector on {svc.metadata.namespace}/{svc.metadata.name}: {current} -> {expected}"
                 )
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="patch_service_selector",
+                    resource=f"service/{svc.metadata.namespace}/{svc.metadata.name}",
+                    api_call="CoreV1Api.patch_namespaced_service",
+                    kubectl_equivalent=(
+                        f"kubectl patch service {svc.metadata.name} -n {svc.metadata.namespace} "
+                        f"--type=merge -p '{self._json_arg({'spec': {'selector': expected}})}'"
+                    ),
+                    change={"field": "spec.selector", "from": current, "to": expected},
+                )
                 continue
 
             try:
@@ -206,14 +404,40 @@ class AutoFixer:
                 results["patched"].append(
                     f"{svc.metadata.namespace}/{svc.metadata.name}: {current} -> {expected}"
                 )
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    action="patch_service_selector",
+                    resource=f"service/{svc.metadata.namespace}/{svc.metadata.name}",
+                    api_call="CoreV1Api.patch_namespaced_service",
+                    kubectl_equivalent=(
+                        f"kubectl patch service {svc.metadata.name} -n {svc.metadata.namespace} "
+                        f"--type=merge -p '{self._json_arg({'spec': {'selector': expected}})}'"
+                    ),
+                    change={"field": "spec.selector", "from": current, "to": expected},
+                )
             except ApiException as e:
                 results["failed"].append(f"{svc.metadata.namespace}/{svc.metadata.name}: {str(e)}")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="failed",
+                    action="patch_service_selector",
+                    resource=f"service/{svc.metadata.namespace}/{svc.metadata.name}",
+                    api_call="CoreV1Api.patch_namespaced_service",
+                    kubectl_equivalent=(
+                        f"kubectl patch service {svc.metadata.name} -n {svc.metadata.namespace} "
+                        f"--type=merge -p '{self._json_arg({'spec': {'selector': expected}})}'"
+                    ),
+                    change={"field": "spec.selector", "from": current, "to": expected},
+                    error=str(e),
+                )
 
         return results
 
     async def fix_configmap_key_mismatches(self, dry_run: bool = False) -> Dict:
         """Add missing ConfigMap keys when a close or single source key exists."""
-        results: Dict = {"dry_run": dry_run, "patched": [], "skipped": [], "failed": []}
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
         pods = self.k8s.v1.list_pod_for_all_namespaces().items
 
         for pod in pods:
@@ -251,6 +475,23 @@ class AutoFixer:
                         results["patched"].append(
                             f"[DRY-RUN] would add key {ref.key} to {pod.metadata.namespace}/{ref.name} using value from {source_key}"
                         )
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            action="patch_configmap_key",
+                            resource=f"configmap/{pod.metadata.namespace}/{ref.name}",
+                            api_call="CoreV1Api.patch_namespaced_config_map",
+                            kubectl_equivalent=(
+                                f"kubectl patch configmap {ref.name} -n {pod.metadata.namespace} "
+                                f"--type=merge -p '{self._json_arg({'data': {ref.key: '<copied from ' + source_key + '>'}})}'"
+                            ),
+                            change={
+                                "field": f"data.{ref.key}",
+                                "from": None,
+                                "to": f"<copied from {source_key}>",
+                                "value_source_key": source_key,
+                            },
+                        )
                         continue
 
                     try:
@@ -262,28 +503,65 @@ class AutoFixer:
                         results["patched"].append(
                             f"{pod.metadata.namespace}/{ref.name}: added key {ref.key} from {source_key}"
                         )
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            action="patch_configmap_key",
+                            resource=f"configmap/{pod.metadata.namespace}/{ref.name}",
+                            api_call="CoreV1Api.patch_namespaced_config_map",
+                            kubectl_equivalent=(
+                                f"kubectl patch configmap {ref.name} -n {pod.metadata.namespace} "
+                                f"--type=merge -p '{self._json_arg({'data': {ref.key: '<copied from ' + source_key + '>'}})}'"
+                            ),
+                            change={
+                                "field": f"data.{ref.key}",
+                                "from": None,
+                                "to": f"<copied from {source_key}>",
+                                "value_source_key": source_key,
+                            },
+                        )
                     except ApiException as e:
                         results["failed"].append(
                             f"{pod.metadata.namespace}/{ref.name}: {str(e)}"
+                        )
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            status="failed",
+                            action="patch_configmap_key",
+                            resource=f"configmap/{pod.metadata.namespace}/{ref.name}",
+                            api_call="CoreV1Api.patch_namespaced_config_map",
+                            kubectl_equivalent=(
+                                f"kubectl patch configmap {ref.name} -n {pod.metadata.namespace} "
+                                f"--type=merge -p '{self._json_arg({'data': {ref.key: '<copied from ' + source_key + '>'}})}'"
+                            ),
+                            change={
+                                "field": f"data.{ref.key}",
+                                "from": None,
+                                "to": f"<copied from {source_key}>",
+                                "value_source_key": source_key,
+                            },
+                            error=str(e),
                         )
 
         return results
 
     async def fix_ingress_backends(self, dry_run: bool = False) -> Dict:
         """Patch ingresses that reference a missing backend service when a safe replacement is inferable."""
-        results: Dict = {"dry_run": dry_run, "patched": [], "skipped": [], "failed": []}
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
         ingresses = self.k8s.networking_v1.list_ingress_for_all_namespaces().items
 
         for ingress in ingresses:
             services = self.k8s.v1.list_namespaced_service(ingress.metadata.namespace).items
             service_names = {svc.metadata.name for svc in services}
             modified = False
+            pending_operations = []
 
-            for rule in ingress.spec.rules or []:
+            for rule_index, rule in enumerate(ingress.spec.rules or []):
                 http = getattr(rule, "http", None)
                 if not http:
                     continue
-                for path in http.paths or []:
+                for path_index, path in enumerate(http.paths or []):
                     backend = getattr(path, "backend", None)
                     service = getattr(backend, "service", None)
                     service_name = getattr(service, "name", None)
@@ -303,14 +581,33 @@ class AutoFixer:
                         results["patched"].append(
                             f"[DRY-RUN] would patch ingress {ingress.metadata.namespace}/{ingress.metadata.name}: {service_name} -> {replacement}"
                         )
+                        patch = [{
+                            "op": "replace",
+                            "path": f"/spec/rules/{rule_index}/http/paths/{path_index}/backend/service/name",
+                            "value": replacement,
+                        }]
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            action="patch_ingress_backend_service",
+                            resource=f"ingress/{ingress.metadata.namespace}/{ingress.metadata.name}",
+                            api_call="NetworkingV1Api.patch_namespaced_ingress",
+                            kubectl_equivalent=(
+                                f"kubectl patch ingress {ingress.metadata.name} -n {ingress.metadata.namespace} "
+                                f"--type=json -p '{self._json_arg(patch)}'"
+                            ),
+                            change={
+                                "field": f"spec.rules[{rule_index}].http.paths[{path_index}].backend.service.name",
+                                "from": service_name,
+                                "to": replacement,
+                            },
+                        )
                         modified = True
                         continue
 
                     path.backend.service.name = replacement
                     modified = True
-                    results["patched"].append(
-                        f"{ingress.metadata.namespace}/{ingress.metadata.name}: {service_name} -> {replacement}"
-                    )
+                    pending_operations.append((rule_index, path_index, service_name, replacement))
 
             if modified and not dry_run:
                 try:
@@ -319,16 +616,65 @@ class AutoFixer:
                         ingress.metadata.namespace,
                         ingress,
                     )
+                    for rule_index, path_index, service_name, replacement in pending_operations:
+                        results["patched"].append(
+                            f"{ingress.metadata.namespace}/{ingress.metadata.name}: {service_name} -> {replacement}"
+                        )
+                        patch = [{
+                            "op": "replace",
+                            "path": f"/spec/rules/{rule_index}/http/paths/{path_index}/backend/service/name",
+                            "value": replacement,
+                        }]
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            action="patch_ingress_backend_service",
+                            resource=f"ingress/{ingress.metadata.namespace}/{ingress.metadata.name}",
+                            api_call="NetworkingV1Api.patch_namespaced_ingress",
+                            kubectl_equivalent=(
+                                f"kubectl patch ingress {ingress.metadata.name} -n {ingress.metadata.namespace} "
+                                f"--type=json -p '{self._json_arg(patch)}'"
+                            ),
+                            change={
+                                "field": f"spec.rules[{rule_index}].http.paths[{path_index}].backend.service.name",
+                                "from": service_name,
+                                "to": replacement,
+                            },
+                        )
                 except ApiException as e:
                     results["failed"].append(
                         f"{ingress.metadata.namespace}/{ingress.metadata.name}: {str(e)}"
                     )
+                    for rule_index, path_index, service_name, replacement in pending_operations:
+                        patch = [{
+                            "op": "replace",
+                            "path": f"/spec/rules/{rule_index}/http/paths/{path_index}/backend/service/name",
+                            "value": replacement,
+                        }]
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            status="failed",
+                            action="patch_ingress_backend_service",
+                            resource=f"ingress/{ingress.metadata.namespace}/{ingress.metadata.name}",
+                            api_call="NetworkingV1Api.patch_namespaced_ingress",
+                            kubectl_equivalent=(
+                                f"kubectl patch ingress {ingress.metadata.name} -n {ingress.metadata.namespace} "
+                                f"--type=json -p '{self._json_arg(patch)}'"
+                            ),
+                            change={
+                                "field": f"spec.rules[{rule_index}].http.paths[{path_index}].backend.service.name",
+                                "from": service_name,
+                                "to": replacement,
+                            },
+                            error=str(e),
+                        )
 
         return results
 
     async def fix_aggressive_liveness_probes(self, dry_run: bool = False) -> Dict:
         """Increase liveness probe initial delay for restarting workloads with liveness failures."""
-        results: Dict = {"dry_run": dry_run, "patched": [], "skipped": [], "failed": []}
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
         pods = self.k8s.v1.list_pod_for_all_namespaces().items
 
         for pod in pods:
@@ -355,7 +701,7 @@ class AutoFixer:
                 continue
 
             changed = []
-            for container in deployment.spec.template.spec.containers or []:
+            for container_index, container in enumerate(deployment.spec.template.spec.containers or []):
                 probe = container.liveness_probe
                 if not probe:
                     continue
@@ -367,9 +713,30 @@ class AutoFixer:
                     results["patched"].append(
                         f"[DRY-RUN] would patch livenessProbe.initialDelaySeconds on {deployment.metadata.namespace}/{deployment.metadata.name}: {initial_delay} -> {target_delay}"
                     )
+                    patch = [{
+                        "op": "replace",
+                        "path": f"/spec/template/spec/containers/{container_index}/livenessProbe/initialDelaySeconds",
+                        "value": target_delay,
+                    }]
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_liveness_probe_delay",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=(
+                            f"kubectl patch deployment {deployment.metadata.name} -n {deployment.metadata.namespace} "
+                            f"--type=json -p '{self._json_arg(patch)}'"
+                        ),
+                        change={
+                            "field": f"spec.template.spec.containers[{container.name}].livenessProbe.initialDelaySeconds",
+                            "from": initial_delay,
+                            "to": target_delay,
+                        },
+                    )
                 else:
                     probe.initial_delay_seconds = target_delay
-                changed.append((initial_delay, target_delay))
+                changed.append((container_index, container.name, initial_delay, target_delay))
 
             if not changed:
                 continue
@@ -383,14 +750,59 @@ class AutoFixer:
                     deployment.metadata.namespace,
                     deployment,
                 )
-                for initial_delay, target_delay in changed:
+                for container_index, container_name, initial_delay, target_delay in changed:
                     results["patched"].append(
                         f"{deployment.metadata.namespace}/{deployment.metadata.name}: livenessProbe.initialDelaySeconds {initial_delay} -> {target_delay}"
+                    )
+                    patch = [{
+                        "op": "replace",
+                        "path": f"/spec/template/spec/containers/{container_index}/livenessProbe/initialDelaySeconds",
+                        "value": target_delay,
+                    }]
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_liveness_probe_delay",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=(
+                            f"kubectl patch deployment {deployment.metadata.name} -n {deployment.metadata.namespace} "
+                            f"--type=json -p '{self._json_arg(patch)}'"
+                        ),
+                        change={
+                            "field": f"spec.template.spec.containers[{container_name}].livenessProbe.initialDelaySeconds",
+                            "from": initial_delay,
+                            "to": target_delay,
+                        },
                     )
             except ApiException as e:
                 results["failed"].append(
                     f"{deployment.metadata.namespace}/{deployment.metadata.name}: {str(e)}"
                 )
+                for container_index, container_name, initial_delay, target_delay in changed:
+                    patch = [{
+                        "op": "replace",
+                        "path": f"/spec/template/spec/containers/{container_index}/livenessProbe/initialDelaySeconds",
+                        "value": target_delay,
+                    }]
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        status="failed",
+                        action="patch_liveness_probe_delay",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=(
+                            f"kubectl patch deployment {deployment.metadata.name} -n {deployment.metadata.namespace} "
+                            f"--type=json -p '{self._json_arg(patch)}'"
+                        ),
+                        change={
+                            "field": f"spec.template.spec.containers[{container_name}].livenessProbe.initialDelaySeconds",
+                            "from": initial_delay,
+                            "to": target_delay,
+                        },
+                        error=str(e),
+                    )
 
         return results
 
