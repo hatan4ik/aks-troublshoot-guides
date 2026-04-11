@@ -17,33 +17,26 @@ echo -e "\n🚀 Argo CD"
 
 ARGOCD_NS="${ARGOCD_NAMESPACE:-argocd}"
 
-# Check controller pods
-ARGOCD_PODS="$(kubectl get pods -n "${ARGOCD_NS}" -l app.kubernetes.io/part-of=argocd \
-  --no-headers 2>/dev/null)" || true
+# Check controller pods — ArgoCD uses app.kubernetes.io/name=argocd-*, no part-of label
+ARGOCD_PODS="$(kubectl get pods -n "${ARGOCD_NS}" --no-headers 2>/dev/null)" || true
 
 if [[ -n "${ARGOCD_PODS}" ]]; then
-  echo "  Controllers (namespace: ${ARGOCD_NS}):"
-  kubectl get pods -n "${ARGOCD_NS}" -l app.kubernetes.io/part-of=argocd \
-    -o wide 2>/dev/null | sed 's/^/  /'
+  RUNNING=$(echo "${ARGOCD_PODS}" | grep -c "Running" || true)
+  TOTAL=$(echo "${ARGOCD_PODS}" | wc -l | tr -d ' ')
+  echo "  Controllers (namespace: ${ARGOCD_NS}): ${RUNNING}/${TOTAL} Running"
+  kubectl get pods -n "${ARGOCD_NS}" 2>/dev/null | sed 's/^/  /'
 else
   if kubectl get namespace "${ARGOCD_NS}" >/dev/null 2>&1; then
-    # Namespace exists — show everything in it to expose partial installs
-    ALL_IN_NS="$(kubectl get all -n "${ARGOCD_NS}" --no-headers 2>/dev/null)" || true
-    if [[ -n "${ALL_IN_NS}" ]]; then
-      echo "  ⚠️  ArgoCD pods not found via label selector; partial install detected:"
-      kubectl get all -n "${ARGOCD_NS}" 2>/dev/null | sed 's/^/  /'
-    else
-      echo "  ❌ Namespace '${ARGOCD_NS}' is empty — install manifest was never applied."
-      echo "     Fix: kubectl apply -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/install.yaml"
-    fi
+    echo "  ❌ Namespace '${ARGOCD_NS}' is empty — install manifest was never applied."
+    echo "     Fix: kubectl apply -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/install.yaml"
   else
     echo "  ℹ️  ArgoCD namespace '${ARGOCD_NS}' not found — ArgoCD not installed."
     echo "     Fix: kubectl create namespace ${ARGOCD_NS} && kubectl apply -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/install.yaml"
   fi
 fi
 
-# Check CRD and Application resources
-if kubectl api-resources --api-group=argoproj.io 2>/dev/null | grep -q "Application"; then
+# Check CRD and Application resources — direct lookup is faster and more reliable than api-resources pipe
+if kubectl get crd applications.argoproj.io >/dev/null 2>&1; then
   echo "  CRD: argoproj.io/Application ✅"
   APP_COUNT="$(kubectl get applications -A --no-headers 2>/dev/null | wc -l | tr -d ' ')"
   if [[ "${APP_COUNT}" -gt 0 ]]; then
