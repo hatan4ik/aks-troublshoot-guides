@@ -404,6 +404,19 @@ For macOS with the Docker Minikube driver, keep a single ingress port-forward ru
 sudo kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80
 ```
 
+To make that forward persistent with macOS `launchd`, stop any manual port-forward first, then install the local daemon:
+
+```sh
+sudo ./scripts/local/install-minikube-ingress-forward-launchd.sh install
+sudo ./scripts/local/install-minikube-ingress-forward-launchd.sh status
+```
+
+The daemon keeps `127.0.0.1:80 -> ingress-nginx-controller:80` running and restarts it if it exits. Remove it with:
+
+```sh
+sudo ./scripts/local/install-minikube-ingress-forward-launchd.sh uninstall
+```
+
 Then open:
 
 ```text
