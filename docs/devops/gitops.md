@@ -40,11 +40,11 @@ kubectl get ingress -n flux-demo
 ```
 
 ```text
-http://argocd-demo.test
-http://flux-demo.test
+http://argocd-demo.localhost
+http://flux-demo.localhost
 ```
 
-On macOS with the Docker Minikube driver, use a local ingress port-forward and wildcard DNS resolver such as `dnsmasq`; the full command sequence is in `../../gitops-demo/README.md`.
+On macOS with the Docker Minikube driver, use a local ingress port-forward. The demo also includes optional `.test` host aliases for teams that prefer wildcard DNS through `dnsmasq`; the full command sequence is in `../../gitops-demo/README.md`.
 
 ## Argo CD Troubleshooting
 

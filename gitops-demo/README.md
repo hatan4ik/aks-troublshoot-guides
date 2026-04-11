@@ -378,8 +378,8 @@ The demo apps include Ingress resources for browser-friendly local names:
 
 | App | URL | Service |
 |-----|-----|---------|
-| Argo CD demo app | `http://argocd-demo.test` | `nginx-argocd.argocd-demo.svc.cluster.local` |
-| Flux demo app | `http://flux-demo.test` | `nginx-flux.flux-demo.svc.cluster.local` |
+| Argo CD demo app | `http://argocd-demo.localhost` | `nginx-argocd.argocd-demo.svc.cluster.local` |
+| Flux demo app | `http://flux-demo.localhost` | `nginx-flux.flux-demo.svc.cluster.local` |
 
 Enable the Minikube ingress controller:
 
@@ -404,7 +404,27 @@ For macOS with the Docker Minikube driver, keep a single ingress port-forward ru
 sudo kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80
 ```
 
-Configure local wildcard DNS once so every `*.test` hostname resolves to localhost. One reliable option is `dnsmasq`:
+Then open:
+
+```text
+http://argocd-demo.localhost
+http://flux-demo.localhost
+```
+
+If you do not want to bind local port `80`, use a non-privileged forward instead:
+
+```sh
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8088:80
+```
+
+Then open:
+
+```text
+http://argocd-demo.localhost:8088
+http://flux-demo.localhost:8088
+```
+
+Optional: the Ingress resources also include `.test` aliases. Configure local wildcard DNS once so every `*.test` hostname resolves to localhost:
 
 ```sh
 brew install dnsmasq
@@ -417,24 +437,11 @@ printf 'nameserver 127.0.0.1\n' | sudo tee /etc/resolver/test
 sudo brew services start dnsmasq
 ```
 
-Then open:
+Then `.test` aliases also work:
 
 ```text
 http://argocd-demo.test
 http://flux-demo.test
-```
-
-If you do not want to bind local port `80`, use a non-privileged forward instead:
-
-```sh
-kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8088:80
-```
-
-Then open:
-
-```text
-http://argocd-demo.test:8088
-http://flux-demo.test:8088
 ```
 
 ### The core rule

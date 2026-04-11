@@ -330,7 +330,16 @@ On macOS with the Docker Minikube driver, use a stable local ingress forward:
 sudo kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80
 ```
 
-Then configure wildcard DNS once with `dnsmasq`:
+Open the demos:
+
+```text
+http://argocd-demo.localhost
+http://flux-demo.localhost
+```
+
+If you prefer not to bind local port `80`, forward `8088:80` and open `http://argocd-demo.localhost:8088` and `http://flux-demo.localhost:8088`.
+
+Optional: the Ingress resources also include `.test` aliases. Configure wildcard DNS once with `dnsmasq` if you want those names:
 
 ```bash
 brew install dnsmasq
@@ -343,14 +352,12 @@ printf 'nameserver 127.0.0.1\n' | sudo tee /etc/resolver/test
 sudo brew services start dnsmasq
 ```
 
-Open the demos:
+Then the `.test` aliases also work:
 
 ```text
 http://argocd-demo.test
 http://flux-demo.test
 ```
-
-If you prefer not to bind local port `80`, forward `8088:80` and open `http://argocd-demo.test:8088` and `http://flux-demo.test:8088`.
 
 ## Troubleshoot After Install
 
