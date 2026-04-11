@@ -2,6 +2,12 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from kubernetes.client import V1Pod
 
+try:
+    from ..analysis.pattern_matcher import match_events, match_log_lines, format_match
+    _PM_AVAILABLE = True
+except Exception:
+    _PM_AVAILABLE = False
+
 # Gap 1: Exit code → (layer, root cause, suggested action)
 EXIT_CODE_MAP: Dict[int, tuple] = {
     0:   ("layer1", "Clean exit — process completed successfully",
@@ -42,6 +48,9 @@ class DiagnosticsEngine:
         try:
             pod = self.k8s.v1.read_namespaced_pod(pod_name, namespace)
 
+            raw_events = self.k8s.v1.list_namespaced_event(namespace)
+            pod_event_objs = [e for e in raw_events.items if e.involved_object.name == pod_name]
+
             diagnosis = {
                 "pod_info": {
                     "name": pod.metadata.name,
@@ -57,8 +66,16 @@ class DiagnosticsEngine:
                     self._analyze_scheduling(pod) if pod.status.phase == "Pending" else None
                 ),
                 "resources": self._check_resources(pod),
-                "events": self._get_pod_events(namespace, pod_name),
+                "events": sorted(
+                    [
+                        {"type": e.type, "reason": e.reason,
+                         "message": e.message, "time": str(e.last_timestamp)}
+                        for e in pod_event_objs
+                    ],
+                    key=lambda x: x["time"], reverse=True
+                )[:10],
                 "issues": self._detect_pod_issues(pod),
+                "pattern_analysis": self._pattern_analyse_pod(pod, pod_event_objs, namespace),
             }
             return diagnosis
         except Exception as e:
@@ -449,6 +466,39 @@ class DiagnosticsEngine:
                 issues.append(f"Container '{cs.name}' is not ready")
         return issues
 
+    def _pattern_analyse_pod(self, pod, pod_event_objs: list, namespace: str) -> List[Dict]:
+        """Run the 5-layer pattern matcher against pod events and container logs.
+
+        Returns a list of format_match() dicts, deduplicated by error_class.
+        Returns [] if the pattern matcher package is not installed.
+        """
+        if not _PM_AVAILABLE:
+            return []
+        seen_classes: set = set()
+        results = []
+
+        # Match against pod events
+        for pm in match_events(pod_event_objs):
+            if pm.error_class not in seen_classes:
+                seen_classes.add(pm.error_class)
+                results.append(format_match(pm))
+
+        # Match against live container logs (last 150 lines per container)
+        for cs in pod.status.container_statuses or []:
+            try:
+                logs = self.k8s.v1.read_namespaced_pod_log(
+                    pod.metadata.name, namespace,
+                    container=cs.name, tail_lines=150,
+                )
+                for pm in match_log_lines(logs or ""):
+                    if pm.error_class not in seen_classes:
+                        seen_classes.add(pm.error_class)
+                        results.append(format_match(pm))
+            except Exception:
+                pass
+
+        return results
+
     # ─────────────────────────────────────────────────────────────
     # Cluster-wide detection (updated to include scheduling detail)
     # ─────────────────────────────────────────────────────────────
@@ -527,8 +577,9 @@ class DiagnosticsEngine:
 
         # Failed / Pending pods — with scheduling breakdown for Pending ones
         pods = self.k8s.v1.list_pod_for_all_namespaces()
-        failed_pods = [p for p in pods.items if p.status.phase == "Failed"]
-        pending_pods = [p for p in pods.items if p.status.phase == "Pending"]
+        active_pods = [p for p in pods.items if not p.metadata.deletion_timestamp]
+        failed_pods = [p for p in active_pods if p.status.phase == "Failed"]
+        pending_pods = [p for p in active_pods if p.status.phase == "Pending"]
 
         if failed_pods:
             issues.append({
@@ -556,7 +607,7 @@ class DiagnosticsEngine:
             })
 
         # ImagePullBackOff
-        image_pull = self._find_image_pull_errors(pods.items)
+        image_pull = self._find_image_pull_errors(active_pods)
         if image_pull:
             issues.append({
                 "type": "image_pull_errors",
@@ -574,7 +625,7 @@ class DiagnosticsEngine:
                 "details": selector_mismatches[:5],
             })
 
-        config_key_mismatches = self._detect_configmap_key_mismatches(pods.items)
+        config_key_mismatches = self._detect_configmap_key_mismatches(active_pods)
         if config_key_mismatches:
             issues.append({
                 "type": "configmap_key_mismatch",
@@ -629,7 +680,7 @@ class DiagnosticsEngine:
         # High restart counts
         high_restart = [
             f"{pod.metadata.namespace}/{pod.metadata.name}"
-            for pod in pods.items
+            for pod in active_pods
             for cs in (pod.status.container_statuses or [])
             if cs.restart_count > 10
         ]
@@ -642,7 +693,7 @@ class DiagnosticsEngine:
             })
 
         # Probe failures (running but not ready)
-        probe_failures = self._find_probe_failures(pods.items)
+        probe_failures = self._find_probe_failures(active_pods)
         if probe_failures:
             issues.append({
                 "type": "probe_failures",
@@ -652,7 +703,7 @@ class DiagnosticsEngine:
                 "hint": "Use 'diagnose <ns> <pod>' for per-container probe analysis",
             })
 
-        aggressive_liveness = self._detect_aggressive_liveness_probes(pods.items)
+        aggressive_liveness = self._detect_aggressive_liveness_probes(active_pods)
         if aggressive_liveness:
             issues.append({
                 "type": "aggressive_liveness_probe",
@@ -662,7 +713,7 @@ class DiagnosticsEngine:
             })
 
         # Warning events cluster-wide (last 1 hour)
-        warning_events = self._check_warning_events()
+        warning_events = self._check_warning_events(active_pods)
         if warning_events:
             issues.append({
                 "type": "warning_events",
@@ -684,7 +735,7 @@ class DiagnosticsEngine:
             })
 
         # CrashLoopBackOff (phase=Running but waiting.reason=CrashLoopBackOff)
-        crashloop = self._find_crashloop_pods(pods.items)
+        crashloop = self._find_crashloop_pods(active_pods)
         if crashloop:
             issues.append({
                 "type": "crashloop_backoff",
@@ -706,7 +757,7 @@ class DiagnosticsEngine:
             })
 
         # Missing ConfigMaps/Secrets referenced by pods
-        missing_refs = self._find_missing_config_refs(pods.items)
+        missing_refs = self._find_missing_config_refs(active_pods)
         if missing_refs:
             issues.append({
                 "type": "missing_config_refs",
@@ -775,17 +826,32 @@ class DiagnosticsEngine:
         try:
             from ..providers.detector import run_provider_checks
             provider_issues = run_provider_checks(self.k8s)
-            # Filter out info-level SDK-unavailable notices unless everything else is clean
+            # Filter out info-level SDK-unavailable or provider-unknown notices.
+            # The explicit provider commands still expose those details, but the
+            # general detector should stay focused on active cluster failures.
             actionable = [i for i in provider_issues if i.get("severity") != "info"]
-            info_only = [i for i in provider_issues if i.get("severity") == "info"]
             issues.extend(actionable)
-            # Append info notices only when no other issues were found (avoids noise)
-            if not issues and info_only:
-                issues.extend(info_only)
         except Exception:
             pass  # provider layer must never crash detect_common_issues()
 
-        return {"issues": issues, "timestamp": datetime.now().isoformat()}
+        # 5-layer pattern analysis on cluster Warning events
+        pattern_matches: List[Dict] = []
+        if _PM_AVAILABLE:
+            try:
+                warn_events = self.k8s.v1.list_event_for_all_namespaces(
+                    field_selector="type=Warning"
+                )
+                pattern_matches = [
+                    format_match(pm) for pm in match_events(warn_events.items)
+                ]
+            except Exception:
+                pass
+
+        return {
+            "issues": issues,
+            "pattern_analysis": pattern_matches,
+            "timestamp": datetime.now().isoformat(),
+        }
 
     def _find_probe_failures(self, pods: List[V1Pod]) -> List[str]:
         failures = []
@@ -938,7 +1004,7 @@ class DiagnosticsEngine:
                     pressured.append(f"{node.metadata.name}: {condition.type} ({condition.message or 'no message'})")
         return pressured
 
-    def _check_warning_events(self) -> List[str]:
+    def _check_warning_events(self, active_pods: List[V1Pod] = None) -> List[str]:
         """Return deduplicated Warning events from the last hour across all namespaces.
 
         Each entry is: '<namespace>/<object> — <reason>: <message>'
@@ -953,9 +1019,19 @@ class DiagnosticsEngine:
 
         from datetime import timezone
         now = datetime.now(tz=timezone.utc)
+        active_pod_map = {
+            (pod.metadata.namespace, pod.metadata.name): pod
+            for pod in (active_pods or [])
+        }
         results = []
         seen = set()
         for e in events.items:
+            involved = e.involved_object
+            if involved.kind == "Pod":
+                pod = active_pod_map.get((involved.namespace, involved.name))
+                if pod is None or self._pod_is_ready(pod):
+                    continue
+
             # Filter to last hour using last_timestamp or event_time
             ts = e.last_timestamp or e.event_time
             if ts is None:
@@ -966,14 +1042,20 @@ class DiagnosticsEngine:
             age_seconds = (now - ts).total_seconds()
             if age_seconds > 3600:
                 continue
-            key = f"{e.involved_object.namespace}/{e.involved_object.name}|{e.reason}"
+            key = f"{involved.namespace}/{involved.name}|{e.reason}"
             if key in seen:
                 continue
             seen.add(key)
-            ns = e.involved_object.namespace or "cluster"
+            ns = involved.namespace or "cluster"
             msg = (e.message or "")[:120]
-            results.append(f"{ns}/{e.involved_object.name} — {e.reason}: {msg}")
+            results.append(f"{ns}/{involved.name} — {e.reason}: {msg}")
         return results
+
+    def _pod_is_ready(self, pod: V1Pod) -> bool:
+        if pod.status.phase != "Running":
+            return False
+        statuses = pod.status.container_statuses or []
+        return bool(statuses) and all(cs.ready for cs in statuses)
 
     def _check_component_health(self) -> List[str]:
         """Check control plane components via the ComponentStatus API.

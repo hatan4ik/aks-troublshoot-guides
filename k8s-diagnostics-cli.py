@@ -5,14 +5,16 @@ K8s Diagnostics CLI — Programmatic AKS/EKS/K8s troubleshooting tool.
 Commands:
   health                          Cluster health summary (nodes, pods, services, events)
   diagnose <ns> <pod>             Full pod analysis: exit codes, probes, scheduling, events
+  analyze  <ns> <pod>             5-layer pattern analysis: map events+logs to root cause + fix
   detect                          Scan cluster for all known issue types
   suggest                         Dry-run: show what fixes would be applied without acting
   network                         DNS, service endpoints, ingress, and LoadBalancer status
-  fix           [--dry-run]       Restart failed pods (controller-managed only)
+  fix           [--dry-run]       Auto-detect issues and apply safe remediations
+  fix-pods      [--dry-run]       Restart failed pods (controller-managed only)
   cleanup       [--dry-run]       Remove evicted pods
   dnsfix        [--dry-run]       Restart unhealthy CoreDNS pods
   scale  <ns> <deploy> <n>  [--dry-run]  Scale a deployment
-  heal          [--dry-run]       Auto-detect issues and apply safe remediations
+  heal          [--dry-run]       Alias for fix
   predict                         Heuristic risk score from detected issues
   optimize                        Cost-optimization hints (pod density, LoadBalancers)
   chaos  <ns> <selector> [live]   Inject pod failure (default: dry-run; pass 'live' to act)
@@ -24,7 +26,12 @@ Flags:
 
 import asyncio
 import json
+import os
 import sys
+import warnings
+from pathlib import Path
+
+warnings.filterwarnings("ignore", category=FutureWarning, module=r"google\.(auth|oauth2).*")
 
 IMPORT_ERROR = None
 try:
@@ -60,6 +67,33 @@ class DiagnosticsCLI:
         """Full pod diagnosis: exit codes, probes, scheduling analysis, events."""
         result = await self.diagnostics.diagnose_pod(namespace, pod_name)
         print(json.dumps(result, indent=2))
+
+    async def analyze_pod(self, namespace, pod_name):
+        """5-layer pattern analysis: map pod events + logs to root cause and fix command."""
+        result = await self.diagnostics.diagnose_pod(namespace, pod_name)
+        if "error" in result:
+            print(json.dumps(result, indent=2))
+            return
+        matches = result.get("pattern_analysis", [])
+        if not matches:
+            print(json.dumps({
+                "pod": f"{namespace}/{pod_name}",
+                "pattern_analysis": [],
+                "summary": "No known error patterns matched — check events and logs manually.",
+                "next_command": f"kubectl describe pod {pod_name} -n {namespace}",
+            }, indent=2))
+            return
+        # Group by layer for readable output
+        by_layer: dict = {}
+        for m in matches:
+            layer = m.get("layer", "unknown")
+            by_layer.setdefault(layer, []).append(m)
+        print(json.dumps({
+            "pod": f"{namespace}/{pod_name}",
+            "phase": result.get("pod_info", {}).get("phase"),
+            "patterns_found": len(matches),
+            "analysis_by_layer": by_layer,
+        }, indent=2))
 
     async def network_check(self):
         print(json.dumps(await self.diagnostics.check_network(), indent=2))
@@ -332,6 +366,29 @@ def _usage():
     sys.exit(1)
 
 
+def _maybe_reexec_project_venv() -> bool:
+    """Use the project virtualenv automatically when the caller used bare python3."""
+    if os.environ.get("K8S_DIAGNOSTICS_NO_VENV_REEXEC") == "1":
+        return False
+
+    repo_root = Path(__file__).resolve().parent
+    venv_root = repo_root / ".venv"
+    venv_python = repo_root / ".venv" / "bin" / "python"
+    if not venv_python.exists():
+        return False
+
+    try:
+        if Path(sys.prefix).resolve() == venv_root.resolve():
+            return False
+    except OSError:
+        pass
+
+    env = os.environ.copy()
+    env["K8S_DIAGNOSTICS_NO_VENV_REEXEC"] = "1"
+    os.execve(str(venv_python), [str(venv_python), str(Path(__file__).resolve()), *sys.argv[1:]], env)
+    return True
+
+
 def _exit_missing_dependency(exc: ModuleNotFoundError):
     missing = exc.name or "unknown"
     print(
@@ -341,7 +398,8 @@ def _exit_missing_dependency(exc: ModuleNotFoundError):
                 "missing_module": missing,
                 "message": (
                     f"Python dependency '{missing}' is not installed. "
-                    "Run 'python3 -m pip install -r requirements.txt' before using the CLI."
+                    "Run 'python3 -m venv .venv && .venv/bin/pip install -r requirements.txt' "
+                    "before using the CLI."
                 ),
             },
             indent=2,
@@ -352,6 +410,7 @@ def _exit_missing_dependency(exc: ModuleNotFoundError):
 
 def main():
     if IMPORT_ERROR is not None:
+        _maybe_reexec_project_venv()
         _exit_missing_dependency(IMPORT_ERROR)
 
     if len(sys.argv) < 2:
@@ -372,6 +431,12 @@ def main():
             sys.exit(1)
         asyncio.run(cli.diagnose_pod(args[1], args[2]))
 
+    elif command == "analyze":
+        if len(args) < 3:
+            print("Usage: analyze <namespace> <pod-name>")
+            sys.exit(1)
+        asyncio.run(cli.analyze_pod(args[1], args[2]))
+
     elif command == "network":
         asyncio.run(cli.network_check())
 
@@ -383,6 +448,9 @@ def main():
         asyncio.run(cli.suggest())
 
     elif command == "fix":
+        asyncio.run(cli.heal(dry_run=dry_run))
+
+    elif command == "fix-pods":
         asyncio.run(cli.fix_failed_pods(dry_run=dry_run))
 
     elif command == "cleanup":
