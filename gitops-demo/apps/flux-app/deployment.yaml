@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-flux
+  namespace: flux-demo
+  labels:
+    app: nginx-flux
+    managed-by: flux
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-flux
+  template:
+    metadata:
+      labels:
+        app: nginx-flux
+        managed-by: flux
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+      volumes:
+        - name: html
+          configMap:
+            name: nginx-index

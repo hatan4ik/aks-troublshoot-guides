@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: aks-troublshoot-guides
+  namespace: flux-system
+spec:
+  interval: 1m        # Poll for new commits every minute
+  url: https://github.com/hatan4ik/aks-troublshoot-guides
+  ref:
+    branch: main

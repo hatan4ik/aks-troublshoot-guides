@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-demo-app
+  namespace: argocd
+  # Finalizer ensures ArgoCD cleans up all managed resources on deletion
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/hatan4ik/aks-troublshoot-guides
+    targetRevision: main
+    path: gitops-demo/apps/argocd-app
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd-demo
+
+  syncPolicy:
+    automated:
+      prune: true        # Delete resources removed from Git
+      selfHeal: true     # Revert any manual cluster changes
+    syncOptions:
+      - CreateNamespace=true   # Auto-create argocd-demo namespace
+      - ServerSideApply=true

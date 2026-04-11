@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-index
+  namespace: argocd-demo
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>ArgoCD Demo App</title>
+    <style>
+      body { font-family: sans-serif; background: #0d1117; color: #e6edf3; display: flex;
+             align-items: center; justify-content: center; height: 100vh; margin: 0; }
+      .card { background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+              padding: 40px 60px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+      h1 { color: #f78166; margin: 0 0 8px; font-size: 2.2rem; }
+      .badge { display: inline-block; background: #1f6feb; color: #fff; border-radius: 6px;
+               padding: 4px 14px; font-size: .9rem; margin: 12px 0 20px; }
+      p { color: #8b949e; margin: 6px 0; }
+    </style>
+    </head>
+    <body>
+      <div class="card">
+        <h1>&#9670; ArgoCD</h1>
+        <div class="badge">GitOps Demo</div>
+        <p>Managed by <strong>Argo CD</strong></p>
+        <p>Namespace: <code>argocd-demo</code></p>
+        <p>Source: <code>gitops-demo/apps/argocd-app</code></p>
+      </div>
+    </body>
+    </html>

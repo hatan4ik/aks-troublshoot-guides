@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-flux
+  namespace: flux-demo
+  labels:
+    app: nginx-flux
+    managed-by: flux
+spec:
+  selector:
+    app: nginx-flux
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
