@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-argocd
+  namespace: argocd-demo
+  labels:
+    app: nginx-argocd
+    managed-by: argocd
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd-demo.test
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-argocd
+                port:
+                  number: 80

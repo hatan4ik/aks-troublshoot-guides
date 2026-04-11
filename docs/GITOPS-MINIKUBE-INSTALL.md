@@ -312,6 +312,46 @@ minikube service nginx-argocd -n argocd-demo --url
 minikube service nginx-flux -n flux-demo --url
 ```
 
+Use friendly local URLs with Ingress:
+
+```bash
+minikube addons enable ingress
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=180s
+kubectl get ingress -n argocd-demo
+kubectl get ingress -n flux-demo
+```
+
+On macOS with the Docker Minikube driver, use a stable local ingress forward:
+
+```bash
+sudo kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80
+```
+
+Then configure wildcard DNS once with `dnsmasq`:
+
+```bash
+brew install dnsmasq
+BREW_PREFIX="$(brew --prefix)"
+mkdir -p "$BREW_PREFIX/etc/dnsmasq.d"
+printf 'address=/test/127.0.0.1\n' > "$BREW_PREFIX/etc/dnsmasq.d/minikube-test.conf"
+echo 'conf-dir='"$BREW_PREFIX"'/etc/dnsmasq.d,*.conf' >> "$BREW_PREFIX/etc/dnsmasq.conf"
+sudo mkdir -p /etc/resolver
+printf 'nameserver 127.0.0.1\n' | sudo tee /etc/resolver/test
+sudo brew services start dnsmasq
+```
+
+Open the demos:
+
+```text
+http://argocd-demo.test
+http://flux-demo.test
+```
+
+If you prefer not to bind local port `80`, forward `8088:80` and open `http://argocd-demo.test:8088` and `http://flux-demo.test:8088`.
+
 ## Troubleshoot After Install
 
 Run the repo GitOps diagnostic script:

@@ -10,12 +10,14 @@ gitops-demo/
 │   │   ├── namespace.yaml
 │   │   ├── configmap.yaml
 │   │   ├── deployment.yaml
-│   │   └── service.yaml
+│   │   ├── service.yaml
+│   │   └── ingress.yaml
 │   └── flux-app/            # Manifests managed by Flux CD  → flux-demo namespace
 │       ├── namespace.yaml
 │       ├── configmap.yaml
 │       ├── deployment.yaml
 │       ├── service.yaml
+│       ├── ingress.yaml
 │       └── kustomization.yaml
 ├── argocd/
 │   └── application.yaml     # Argo CD Application CR  (apply once)
@@ -369,6 +371,71 @@ kubectl delete gitrepository aks-troublshoot-guides -n flux-system
 ---
 
 ## Part 3 — GitOps loop in practice
+
+## Friendly local URLs with Ingress
+
+The demo apps include Ingress resources for browser-friendly local names:
+
+| App | URL | Service |
+|-----|-----|---------|
+| Argo CD demo app | `http://argocd-demo.test` | `nginx-argocd.argocd-demo.svc.cluster.local` |
+| Flux demo app | `http://flux-demo.test` | `nginx-flux.flux-demo.svc.cluster.local` |
+
+Enable the Minikube ingress controller:
+
+```sh
+minikube addons enable ingress
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=180s
+```
+
+Verify the Ingress objects:
+
+```sh
+kubectl get ingress -n argocd-demo
+kubectl get ingress -n flux-demo
+```
+
+For macOS with the Docker Minikube driver, keep a single ingress port-forward running:
+
+```sh
+sudo kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 80:80
+```
+
+Configure local wildcard DNS once so every `*.test` hostname resolves to localhost. One reliable option is `dnsmasq`:
+
+```sh
+brew install dnsmasq
+BREW_PREFIX="$(brew --prefix)"
+mkdir -p "$BREW_PREFIX/etc/dnsmasq.d"
+printf 'address=/test/127.0.0.1\n' > "$BREW_PREFIX/etc/dnsmasq.d/minikube-test.conf"
+echo 'conf-dir='"$BREW_PREFIX"'/etc/dnsmasq.d,*.conf' >> "$BREW_PREFIX/etc/dnsmasq.conf"
+sudo mkdir -p /etc/resolver
+printf 'nameserver 127.0.0.1\n' | sudo tee /etc/resolver/test
+sudo brew services start dnsmasq
+```
+
+Then open:
+
+```text
+http://argocd-demo.test
+http://flux-demo.test
+```
+
+If you do not want to bind local port `80`, use a non-privileged forward instead:
+
+```sh
+kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8088:80
+```
+
+Then open:
+
+```text
+http://argocd-demo.test:8088
+http://flux-demo.test:8088
+```
 
 ### The core rule
 

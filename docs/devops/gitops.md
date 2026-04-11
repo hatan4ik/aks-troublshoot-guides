@@ -29,7 +29,22 @@ kubectl apply -f ../../gitops-demo/argocd/application.yaml
 kubectl apply -f ../../gitops-demo/flux/gitrepository.yaml -f ../../gitops-demo/flux/kustomization.yaml
 ```
 
-See `../../gitops-demo/README.md` for the full walkthrough, including how to trigger GitOps reconciliation and access the demo NodePort Services with `minikube service`.
+See `../../gitops-demo/README.md` for the full walkthrough, including how to trigger GitOps reconciliation and access the demo apps with NodePort Services or friendly local Ingress hostnames.
+
+For friendly local URLs, enable the Minikube ingress addon and use the demo Ingress hostnames:
+
+```bash
+minikube addons enable ingress
+kubectl get ingress -n argocd-demo
+kubectl get ingress -n flux-demo
+```
+
+```text
+http://argocd-demo.test
+http://flux-demo.test
+```
+
+On macOS with the Docker Minikube driver, use a local ingress port-forward and wildcard DNS resolver such as `dnsmasq`; the full command sequence is in `../../gitops-demo/README.md`.
 
 ## Argo CD Troubleshooting
 
