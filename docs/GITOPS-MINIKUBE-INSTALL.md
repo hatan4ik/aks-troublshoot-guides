@@ -278,6 +278,40 @@ Healthy outcome:
 - Flux CRDs exist for `gitrepositories`, `kustomizations`, `helmreleases`, and related toolkit resources
 - optional Weave GitOps resources show `HelmRelease/ww-gitops` as `Ready=True`
 
+## Deploy The Demo Applications
+
+After Argo CD and Flux CD are installed, use the demo manifests in `gitops-demo/`.
+
+For the full walkthrough, see:
+
+```text
+gitops-demo/README.md
+```
+
+Register the Argo CD demo app:
+
+```bash
+kubectl apply -f gitops-demo/argocd/application.yaml
+kubectl get application argocd-demo-app -n argocd
+kubectl get pods -n argocd-demo
+```
+
+Register the Flux demo app:
+
+```bash
+kubectl apply -f gitops-demo/flux/gitrepository.yaml -f gitops-demo/flux/kustomization.yaml
+kubectl get gitrepository aks-troublshoot-guides -n flux-system
+kubectl get kustomization flux-demo-app -n flux-system
+kubectl get pods -n flux-demo
+```
+
+Access the demo Services from Minikube:
+
+```bash
+minikube service nginx-argocd -n argocd-demo --url
+minikube service nginx-flux -n flux-demo --url
+```
+
 ## Troubleshoot After Install
 
 Run the repo GitOps diagnostic script:

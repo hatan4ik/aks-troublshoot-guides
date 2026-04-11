@@ -21,6 +21,16 @@ python3 ../../k8s-diagnostics-cli.py suggest
 - The CLI detects unhealthy Argo CD/Flux controllers, unhealthy Argo CD Applications, Flux resources with `Ready=False`, and missing GitOps CRDs.
 - The CLI only auto-restarts unhealthy controller-owned pods. Application sync, drift, source, Helm, and auth errors must be fixed in Git or controller configuration.
 
+## Demo Applications
+The repo includes a self-contained Argo CD and Flux demo in `gitops-demo/`.
+
+```bash
+kubectl apply -f ../../gitops-demo/argocd/application.yaml
+kubectl apply -f ../../gitops-demo/flux/gitrepository.yaml -f ../../gitops-demo/flux/kustomization.yaml
+```
+
+See `../../gitops-demo/README.md` for the full walkthrough, including how to trigger GitOps reconciliation and access the demo NodePort Services with `minikube service`.
+
 ## Argo CD Troubleshooting
 
 ### CRD Annotation Too Large During Install

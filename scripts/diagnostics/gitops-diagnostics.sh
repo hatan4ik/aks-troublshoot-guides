@@ -28,10 +28,10 @@ if [[ -n "${ARGOCD_PODS}" ]]; then
 else
   if kubectl get namespace "${ARGOCD_NS}" >/dev/null 2>&1; then
     echo "  ❌ Namespace '${ARGOCD_NS}' is empty — install manifest was never applied."
-    echo "     Fix: kubectl apply -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/install.yaml"
+    echo "     Fix: kubectl apply --server-side --force-conflicts -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
   else
     echo "  ℹ️  ArgoCD namespace '${ARGOCD_NS}' not found — ArgoCD not installed."
-    echo "     Fix: kubectl create namespace ${ARGOCD_NS} && kubectl apply -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/install.yaml"
+    echo "     Fix: kubectl create namespace ${ARGOCD_NS} && kubectl apply --server-side --force-conflicts -n ${ARGOCD_NS} -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml"
   fi
 fi
 
