@@ -69,7 +69,7 @@ else
 fi
 
 # Kustomizations
-if kubectl api-resources --api-group=kustomize.toolkit.fluxcd.io 2>/dev/null | grep -q "Kustomization"; then
+if kubectl get crd kustomizations.kustomize.toolkit.fluxcd.io >/dev/null 2>&1; then
   echo "  CRD: kustomize.toolkit.fluxcd.io/Kustomization ✅"
   KS_COUNT="$(kubectl get kustomizations -A --no-headers 2>/dev/null | wc -l | tr -d ' ')"
   if [[ "${KS_COUNT}" -gt 0 ]]; then
@@ -83,7 +83,7 @@ else
 fi
 
 # HelmReleases
-if kubectl api-resources --api-group=helm.toolkit.fluxcd.io 2>/dev/null | grep -q "HelmRelease"; then
+if kubectl get crd helmreleases.helm.toolkit.fluxcd.io >/dev/null 2>&1; then
   echo "  CRD: helm.toolkit.fluxcd.io/HelmRelease ✅"
   HR_COUNT="$(kubectl get helmreleases -A --no-headers 2>/dev/null | wc -l | tr -d ' ')"
   if [[ "${HR_COUNT}" -gt 0 ]]; then
@@ -97,7 +97,7 @@ else
 fi
 
 # GitRepositories (useful for Flux source detection)
-if kubectl api-resources --api-group=source.toolkit.fluxcd.io 2>/dev/null | grep -q "GitRepository"; then
+if kubectl get crd gitrepositories.source.toolkit.fluxcd.io >/dev/null 2>&1; then
   GR_COUNT="$(kubectl get gitrepositories -A --no-headers 2>/dev/null | wc -l | tr -d ' ')"
   if [[ "${GR_COUNT}" -gt 0 ]]; then
     echo "  GitRepositories (${GR_COUNT}):"
@@ -105,7 +105,7 @@ if kubectl api-resources --api-group=source.toolkit.fluxcd.io 2>/dev/null | grep
   fi
 fi
 
-if kubectl api-resources --api-group=source.toolkit.fluxcd.io 2>/dev/null | grep -q "HelmRepository"; then
+if kubectl get crd helmrepositories.source.toolkit.fluxcd.io >/dev/null 2>&1; then
   HELM_REPO_COUNT="$(kubectl get helmrepositories -A --no-headers 2>/dev/null | wc -l | tr -d ' ')"
   if [[ "${HELM_REPO_COUNT}" -gt 0 ]]; then
     echo "  HelmRepositories (${HELM_REPO_COUNT}):"
