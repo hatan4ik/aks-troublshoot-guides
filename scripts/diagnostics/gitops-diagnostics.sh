@@ -113,6 +113,16 @@ if kubectl get crd helmrepositories.source.toolkit.fluxcd.io >/dev/null 2>&1; th
   fi
 fi
 
+echo -e "\n🖥 Flux UI (optional Weave GitOps)"
+if kubectl get svc ww-gitops-weave-gitops -n "${FLUX_NS}" >/dev/null 2>&1; then
+  kubectl get pods,svc -n "${FLUX_NS}" -l app.kubernetes.io/name=weave-gitops 2>/dev/null | sed 's/^/  /'
+  echo "  Access: kubectl port-forward svc/ww-gitops-weave-gitops -n ${FLUX_NS} 9001:9001"
+  echo "  URL: http://localhost:9001"
+else
+  echo "  ℹ️  Weave GitOps UI not installed. Flux itself has no built-in GUI."
+  echo "     See docs/GITOPS-MINIKUBE-INSTALL.md for the optional dashboard install."
+fi
+
 # ── Recent GitOps Warning Events ─────────────────────────────────────────────
 echo -e "\n📜 Recent GitOps Warning Events"
 EVENTS="$(kubectl get events -A --field-selector type=Warning --sort-by=.lastTimestamp 2>/dev/null \

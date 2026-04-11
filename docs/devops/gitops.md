@@ -74,6 +74,25 @@ The tool deletes only unhealthy controller-owned Argo CD pods so their Deploymen
 
 ## Flux Troubleshooting
 
+### Flux UI Access
+Flux CD does not include a native GUI. In local labs, use Weave GitOps as an optional Flux dashboard.
+
+If Weave GitOps is installed:
+
+```bash
+kubectl get helmrelease ww-gitops -n flux-system
+kubectl get svc ww-gitops-weave-gitops -n flux-system
+kubectl port-forward svc/ww-gitops-weave-gitops -n flux-system 9001:9001
+```
+
+Open:
+
+```text
+http://localhost:9001
+```
+
+Login with the admin password generated during the Weave GitOps install. If the password is lost, generate a new bcrypt hash and update `spec.values.adminUser.passwordHash` on `HelmRelease/ww-gitops`.
+
 ### GitRepository Not Ready
 **Diagnosis**:
 ```bash

@@ -63,6 +63,98 @@ source-controller
 
 Flux does not install a UI by default. It is mostly CLI and controller driven.
 
+## Optional: Install Flux UI With Weave GitOps
+
+Flux CD does not ship a built-in dashboard like Argo CD. For a local GUI, install Weave GitOps on top of Flux.
+
+Generate a local admin password and bcrypt hash:
+
+```bash
+export WEAVE_GITOPS_PASSWORD="$(openssl rand -base64 18)"
+export WEAVE_GITOPS_PASSWORD_HASH="$(
+  htpasswd -nbBC 10 "" "${WEAVE_GITOPS_PASSWORD}" | tr -d ':\n' | sed 's/$2y/$2a/'
+)"
+
+echo "Weave GitOps username: admin"
+echo "Weave GitOps password: ${WEAVE_GITOPS_PASSWORD}"
+```
+
+Install the Weave GitOps dashboard through Flux:
+
+```bash
+cat <<YAML | kubectl apply -f -
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  annotations:
+    metadata.weave.works/description: This is the Weave GitOps Dashboard for Flux.
+  labels:
+    app.kubernetes.io/component: ui
+    app.kubernetes.io/name: weave-gitops-dashboard
+    app.kubernetes.io/part-of: weave-gitops
+  name: ww-gitops
+  namespace: flux-system
+spec:
+  interval: 1h
+  type: oci
+  url: oci://ghcr.io/weaveworks/charts
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ww-gitops
+  namespace: flux-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: weave-gitops
+      interval: 1h
+      sourceRef:
+        kind: HelmRepository
+        name: ww-gitops
+  values:
+    adminUser:
+      create: true
+      username: admin
+      passwordHash: "${WEAVE_GITOPS_PASSWORD_HASH}"
+YAML
+```
+
+Wait for the dashboard:
+
+```bash
+kubectl wait --for=condition=Ready helmrelease/ww-gitops -n flux-system --timeout=300s
+kubectl get pods,svc -n flux-system -l app.kubernetes.io/name=weave-gitops
+```
+
+Access the UI:
+
+```bash
+kubectl port-forward svc/ww-gitops-weave-gitops -n flux-system 9001:9001
+```
+
+Open:
+
+```text
+http://localhost:9001
+```
+
+Login:
+
+```text
+username: admin
+password: value printed by WEAVE_GITOPS_PASSWORD when you installed it
+```
+
+If local port `9001` is busy, use a different local port:
+
+```bash
+kubectl port-forward svc/ww-gitops-weave-gitops -n flux-system 9101:9001
+```
+
+Then open `http://localhost:9101`.
+
 ## Install Argo CD
 
 Create the namespace:
@@ -174,6 +266,7 @@ Run:
 ```bash
 kubectl get pods -n argocd
 kubectl get pods -n flux-system
+kubectl get helmrepository,helmrelease -n flux-system
 kubectl get crd | grep -E 'argoproj.io|fluxcd.io|toolkit.fluxcd.io'
 ```
 
@@ -183,6 +276,7 @@ Healthy outcome:
 - all Flux pods are `Running`
 - Argo CD CRDs exist for `applications.argoproj.io`, `applicationsets.argoproj.io`, and `appprojects.argoproj.io`
 - Flux CRDs exist for `gitrepositories`, `kustomizations`, `helmreleases`, and related toolkit resources
+- optional Weave GitOps resources show `HelmRelease/ww-gitops` as `Ready=True`
 
 ## Troubleshoot After Install
 
@@ -238,6 +332,13 @@ Remove Flux:
 
 ```bash
 kubectl delete namespace flux-system
+```
+
+If you only want to remove the optional Weave GitOps UI but keep Flux:
+
+```bash
+kubectl delete helmrelease ww-gitops -n flux-system
+kubectl delete helmrepository ww-gitops -n flux-system
 ```
 
 If you want to remove all Flux CRDs too, delete the install manifest resources:
