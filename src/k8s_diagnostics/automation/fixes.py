@@ -1,13 +1,14 @@
 import difflib
 import json
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from kubernetes.client.rest import ApiException
 
 
 class AutoFixer:
-    def __init__(self, k8s_client):
+    def __init__(self, k8s_client, allowed_namespaces: Optional[Iterable[str]] = None):
         self.k8s = k8s_client
+        self.allowed_namespaces = self._normalize_allowed_namespaces(allowed_namespaces)
 
     def _new_results(self, dry_run: bool, **fields) -> Dict:
         results = {"dry_run": dry_run, "operations": []}
@@ -43,6 +44,44 @@ class AutoFixer:
     def _json_arg(self, payload: Dict) -> str:
         return json.dumps(payload, separators=(",", ":"))
 
+    def _normalize_allowed_namespaces(
+        self, allowed_namespaces: Optional[Iterable[str]]
+    ) -> Optional[set]:
+        if allowed_namespaces is None:
+            return None
+
+        normalized = {
+            namespace.strip()
+            for namespace in allowed_namespaces
+            if namespace and namespace.strip()
+        }
+        return normalized or None
+
+    def _namespace_allowed(self, namespace: str) -> bool:
+        return (
+            self.allowed_namespaces is None
+            or "*" in self.allowed_namespaces
+            or namespace in self.allowed_namespaces
+        )
+
+    def _skip_disallowed_namespace(self, results: Dict, namespace: str, resource: str) -> bool:
+        if self._namespace_allowed(namespace):
+            return False
+
+        message = f"{resource} (namespace '{namespace}' is outside the remediation allowlist)"
+        results.setdefault("skipped", []).append(message)
+        self._record_operation(
+            results,
+            dry_run=results.get("dry_run", False),
+            status="skipped",
+            action="skip_disallowed_namespace",
+            resource=resource,
+            api_call="allowlist_guard",
+            kubectl_equivalent="not applicable",
+            change={"allowed_namespaces": sorted(self.allowed_namespaces or [])},
+        )
+        return True
+
     async def restart_failed_pods(self, dry_run: bool = False) -> Dict:
         """Delete failed or crashlooping pods so their controller can recreate them."""
         results: Dict = self._new_results(
@@ -62,6 +101,9 @@ class AutoFixer:
 
         for pod in candidates:
             ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
+            if self._skip_disallowed_namespace(pod.metadata.namespace, f"pod/{ref}"):
+                continue
+
             if not self._has_controller(pod):
                 results["skipped"].append(f"{ref} (no controller — manual intervention required)")
                 self._record_operation(
@@ -127,6 +169,9 @@ class AutoFixer:
 
         for pod in evicted:
             ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
+            if self._skip_disallowed_namespace(pod.metadata.namespace, f"pod/{ref}"):
+                continue
+
             if dry_run:
                 results["cleaned"].append(f"[DRY-RUN] would delete evicted pod {ref}")
                 self._record_operation(
@@ -186,6 +231,13 @@ class AutoFixer:
             return results
 
         results["action"] = "restart_coredns"
+        if not self._namespace_allowed("kube-system"):
+            for pod in unhealthy:
+                ref = f"kube-system/{pod.metadata.name}"
+                self._skip_disallowed_namespace("kube-system", f"pod/{ref}")
+            results["status"] = "skipped"
+            return results
+
         for pod in unhealthy:
             ref = pod.metadata.name
             if dry_run:
@@ -233,6 +285,9 @@ class AutoFixer:
         pods = self.k8s.v1.list_pod_for_all_namespaces().items
 
         for pod in pods:
+            if not self._namespace_allowed(pod.metadata.namespace):
+                continue
+
             waiting_reason = self._pod_waiting_reason(pod)
             if waiting_reason not in ("ImagePullBackOff", "ErrImagePull"):
                 continue
@@ -355,6 +410,9 @@ class AutoFixer:
         }
 
         for svc in services:
+            if not self._namespace_allowed(svc.metadata.namespace):
+                continue
+
             if not svc.spec.selector:
                 continue
 
@@ -441,6 +499,9 @@ class AutoFixer:
         pods = self.k8s.v1.list_pod_for_all_namespaces().items
 
         for pod in pods:
+            if not self._namespace_allowed(pod.metadata.namespace):
+                continue
+
             if self._pod_waiting_reason(pod) != "CreateContainerConfigError":
                 continue
 
@@ -552,6 +613,9 @@ class AutoFixer:
         ingresses = self.k8s.networking_v1.list_ingress_for_all_namespaces().items
 
         for ingress in ingresses:
+            if not self._namespace_allowed(ingress.metadata.namespace):
+                continue
+
             services = self.k8s.v1.list_namespaced_service(ingress.metadata.namespace).items
             service_names = {svc.metadata.name for svc in services}
             modified = False
@@ -678,6 +742,8 @@ class AutoFixer:
         pods = self.k8s.v1.list_pod_for_all_namespaces().items
 
         for pod in pods:
+            if not self._namespace_allowed(pod.metadata.namespace):
+                continue
             if pod.metadata.namespace in ("kube-system", "kube-public", "kube-node-lease"):
                 continue
             if not any((cs.restart_count or 0) > 0 for cs in (pod.status.container_statuses or [])):
@@ -820,6 +886,9 @@ class AutoFixer:
         candidates = []
 
         for pod in pods:
+            if not self._namespace_allowed(pod.metadata.namespace):
+                continue
+
             if pod.metadata.namespace not in ("argocd", "flux-system"):
                 continue
             if pod.metadata.deletion_timestamp:
@@ -898,6 +967,15 @@ class AutoFixer:
         self, namespace: str, deployment: str, replicas: int, dry_run: bool = False
     ) -> Dict:
         """Scale a deployment to the specified replica count."""
+        if not self._namespace_allowed(namespace):
+            return {
+                "dry_run": dry_run,
+                "deployment": f"{namespace}/{deployment}",
+                "status": "skipped",
+                "error": f"namespace '{namespace}' is outside the remediation allowlist",
+                "allowed_namespaces": sorted(self.allowed_namespaces or []),
+            }
+
         try:
             dep = self.k8s.apps_v1.read_namespaced_deployment(deployment, namespace)
             current = dep.spec.replicas
@@ -931,6 +1009,15 @@ class AutoFixer:
         dry_run: bool = False,
     ) -> Dict:
         """Set CPU and memory limits on all containers in a deployment."""
+        if not self._namespace_allowed(namespace):
+            return {
+                "dry_run": dry_run,
+                "deployment": f"{namespace}/{deployment}",
+                "status": "skipped",
+                "error": f"namespace '{namespace}' is outside the remediation allowlist",
+                "allowed_namespaces": sorted(self.allowed_namespaces or []),
+            }
+
         try:
             dep = self.k8s.apps_v1.read_namespaced_deployment(deployment, namespace)
             containers = [c.name for c in dep.spec.template.spec.containers]
@@ -1018,6 +1105,13 @@ class AutoFixer:
         if pod.metadata.namespace in ("kube-system", "kube-public", "kube-node-lease"):
             return False
         if pod.metadata.labels and pod.metadata.labels.get("job-name"):
+            return False
+        if pod.metadata.deletion_timestamp:
+            return False
+        if pod.spec and pod.spec.priority_class_name in ("system-cluster-critical", "system-node-critical"):
+            return False
+        owner_kinds = {owner.kind for owner in (pod.metadata.owner_references or [])}
+        if "StatefulSet" in owner_kinds:
             return False
         return True
 

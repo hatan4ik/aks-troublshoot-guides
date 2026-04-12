@@ -3,6 +3,8 @@
 This directory is a self-contained GitOps demo that uses **this repository** as the Git source.
 Both tools watch the same GitHub repo and reconcile independently into their own namespaces.
 
+If you fork this repo, replace the hard-coded `repoURL` / `url` values in `gitops-demo/argocd/application.yaml` and `gitops-demo/flux/gitrepository.yaml` with your fork URL before applying the GitOps CRs.
+
 ```
 gitops-demo/
 ├── apps/
@@ -11,7 +13,8 @@ gitops-demo/
 │   │   ├── configmap.yaml
 │   │   ├── deployment.yaml
 │   │   ├── service.yaml
-│   │   └── ingress.yaml
+│   │   ├── ingress.yaml
+│   │   └── kustomization.yaml
 │   └── flux-app/            # Manifests managed by Flux CD  → flux-demo namespace
 │       ├── namespace.yaml
 │       ├── configmap.yaml

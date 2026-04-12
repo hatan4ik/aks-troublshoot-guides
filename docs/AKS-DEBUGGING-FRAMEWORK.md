@@ -6,7 +6,7 @@ The structured mental model for diagnosing failures in an AKS cluster. Use this 
 
 ## The 5-Layer Model
 
-Every AKS failure lives in exactly one of these layers. Diagnose top-down — do not jump to layer 5 when the problem is in layer 1.
+Start by classifying the dominant symptom into one of these layers. Real incidents can span layers, but the discipline is to diagnose top-down and avoid jumping to layer 5 before layer 1 evidence is clean.
 
 ```
 Layer 1 │ Pod Lifecycle      │ Scheduling, image pull, startup, probes, config
@@ -32,7 +32,7 @@ kubectl get pods -A
         │   ├── "Insufficient cpu/memory"  → Layer 1: lower requests  │
         │   ├── "Untolerated taint"        → Layer 1: add toleration  │
         │   ├── "node affinity/selector"   → Layer 1: fix nodeSelector│
-        │   └── "Unbound PVC"             → Layer 5: storage          │
+        │   └── "Unbound PVC"             → Layer 1/5: PVC/StorageClass/Azure disk │
         │                                                              │
         ├── ImagePullBackOff / ErrImagePull ───────────────────────── │
         │   kubectl describe pod → Events                             │

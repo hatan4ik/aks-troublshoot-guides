@@ -1,4 +1,4 @@
-.PHONY: build deploy api cli health diagnose fix
+.PHONY: build deploy api cli health diagnose fix suggest fix-dry-run validate
 
 # Build and deployment
 build:
@@ -24,11 +24,20 @@ network:
 detect:
 	python k8s-diagnostics-cli.py detect
 
+suggest:
+	python k8s-diagnostics-cli.py suggest
+
+fix-dry-run:
+	python k8s-diagnostics-cli.py fix --dry-run
+
 fix:
 	python k8s-diagnostics-cli.py fix
 
 cleanup:
 	python k8s-diagnostics-cli.py cleanup
+
+validate:
+	./scripts/validate-repo.sh
 
 # API calls (programmatic)
 api-health:
@@ -41,7 +50,7 @@ api-network:
 	curl -s http://localhost:8000/diagnose/network | jq
 
 api-fix:
-	curl -s -X POST http://localhost:8000/fix/restart-failed-pods | jq
+	curl -s -H "X-API-Key: $(K8S_DIAGNOSTICS_API_KEY)" -X POST http://localhost:8000/fix/restart-failed-pods | jq
 
 # Setup
 install:

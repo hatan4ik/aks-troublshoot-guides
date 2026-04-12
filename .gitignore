@@ -2,11 +2,26 @@
 .vscode/
 .claude/
 .gemini/
+.DS_Store
 
 # Local tooling state
 .venv/
 .trunk/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Python cache artifacts
 __pycache__/
 *.py[cod]
+
+# Local generated output
+logs/
+reports/
+quick-reference.md
+*.log
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example

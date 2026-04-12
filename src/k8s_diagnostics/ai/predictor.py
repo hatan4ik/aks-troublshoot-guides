@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
-from typing import Dict, List
+from typing import Dict, Iterable, List, Optional
 import asyncio
 
 class AIPredictor:
@@ -27,14 +27,39 @@ class AIPredictor:
         }
 
 class ChaosEngineer:
-    def __init__(self, k8s_client):
+    def __init__(self, k8s_client, allowed_namespaces: Optional[Iterable[str]] = None):
         self.k8s = k8s_client
+        self.allowed_namespaces = {
+            namespace.strip()
+            for namespace in (allowed_namespaces or [])
+            if namespace and namespace.strip()
+        } or None
 
-    async def inject_pod_failure(self, namespace: str, label_selector: str) -> Dict:
+    async def inject_pod_failure(
+        self, namespace: str, label_selector: str, dry_run: bool = True
+    ) -> Dict:
         """Inject controlled pod failures"""
+        if namespace in ["kube-system", "kube-public", "kube-node-lease"]:
+            return {"error": "Refusing to target system namespace"}
+        if (
+            self.allowed_namespaces is not None
+            and "*" not in self.allowed_namespaces
+            and namespace not in self.allowed_namespaces
+        ):
+            return {
+                "error": f"namespace '{namespace}' is outside the chaos allowlist",
+                "allowed_namespaces": sorted(self.allowed_namespaces),
+            }
+
         pods = self.k8s.v1.list_namespaced_pod(namespace, label_selector=label_selector)
         if pods.items:
             target_pod = pods.items[0]
+            if dry_run:
+                return {
+                    "experiment": "pod_failure",
+                    "action": "dry_run",
+                    "target": f"{namespace}/{target_pod.metadata.name}",
+                }
             self.k8s.v1.delete_namespaced_pod(target_pod.metadata.name, namespace)
             return {"experiment": "pod_failure", "target": f"{namespace}/{target_pod.metadata.name}"}
         return {"error": "no_pods_found"}

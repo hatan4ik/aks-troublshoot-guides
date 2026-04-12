@@ -1603,39 +1603,7 @@ class DiagnosticsEngine:
         """Attempt safe remediations for detected issues."""
         if not getattr(self.k8s, "fixer", None):
             return {"error": "Auto-heal unavailable: fixer not configured"}
-
-        actions = []
-        issues = await self.detect_common_issues()
-        for issue in issues.get("issues", []):
-            if issue["type"] == "failed_pods":
-                result = await self.k8s.fixer.restart_failed_pods()
-                actions.append({"issue": "failed_pods", "result": result})
-            if issue["type"] == "dns_unhealthy":
-                result = await self.k8s.fixer.fix_dns_issues()
-                actions.append({"issue": "dns_unhealthy", "result": result})
-            if issue["type"] == "image_pull_errors":
-                result = await self.k8s.fixer.fix_image_pull_errors()
-                actions.append({"issue": "image_pull_errors", "result": result})
-            if issue["type"] == "service_selector_mismatch":
-                result = await self.k8s.fixer.fix_service_selector_mismatches()
-                actions.append({"issue": "service_selector_mismatch", "result": result})
-            if issue["type"] == "configmap_key_mismatch":
-                result = await self.k8s.fixer.fix_configmap_key_mismatches()
-                actions.append({"issue": "configmap_key_mismatch", "result": result})
-            if issue["type"] == "ingress_backend_missing_service":
-                result = await self.k8s.fixer.fix_ingress_backends()
-                actions.append({"issue": "ingress_backend_missing_service", "result": result})
-            if issue["type"] == "aggressive_liveness_probe":
-                result = await self.k8s.fixer.fix_aggressive_liveness_probes()
-                actions.append({"issue": "aggressive_liveness_probe", "result": result})
-            if issue["type"] == "gitops_controller_unhealthy":
-                result = await self.k8s.fixer.restart_unhealthy_gitops_controllers()
-                actions.append({"issue": "gitops_controller_unhealthy", "result": result})
-        return {
-            "actions": actions,
-            "issues": issues.get("issues", []),
-            "timestamp": datetime.now().isoformat(),
-        }
+        return await self.k8s.fixer.auto_remediate(self)
 
     def optimize_costs(self) -> Dict:
         recs = []

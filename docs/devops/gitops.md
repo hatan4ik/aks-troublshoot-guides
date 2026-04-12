@@ -24,6 +24,8 @@ python3 ../../k8s-diagnostics-cli.py suggest
 ## Demo Applications
 The repo includes a self-contained Argo CD and Flux demo in `gitops-demo/`.
 
+If you run the demo from a fork, update the Git repo URL in `gitops-demo/argocd/application.yaml` and `gitops-demo/flux/gitrepository.yaml` before applying the CRs.
+
 ```bash
 kubectl apply -f ../../gitops-demo/argocd/application.yaml
 kubectl apply -f ../../gitops-demo/flux/gitrepository.yaml -f ../../gitops-demo/flux/kustomization.yaml

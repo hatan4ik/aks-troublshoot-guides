@@ -1,17 +1,34 @@
-from typing import Dict
+from typing import Dict, Iterable, Optional
 from kubernetes.client.rest import ApiException
 
 
 class ChaosEngine:
     """Simple chaos injector with optional dry-run"""
 
-    def __init__(self, k8s_client):
+    def __init__(self, k8s_client, allowed_namespaces: Optional[Iterable[str]] = None):
         self.k8s = k8s_client
+        self.allowed_namespaces = {
+            namespace.strip()
+            for namespace in (allowed_namespaces or [])
+            if namespace and namespace.strip()
+        } or None
 
-    async def inject_pod_failure(self, namespace: str, label_selector: str, dry_run: bool = True) -> Dict:
+    async def inject_pod_failure(
+        self, namespace: str, label_selector: str, dry_run: bool = True
+    ) -> Dict:
         """Delete one pod matching selector; defaults to dry-run. Protects system namespaces."""
         if namespace in ["kube-system", "kube-public", "kube-node-lease"]:
             return {"error": "Refusing to target system namespace"}
+
+        if (
+            self.allowed_namespaces is not None
+            and "*" not in self.allowed_namespaces
+            and namespace not in self.allowed_namespaces
+        ):
+            return {
+                "error": f"namespace '{namespace}' is outside the chaos allowlist",
+                "allowed_namespaces": sorted(self.allowed_namespaces),
+            }
 
         if not label_selector:
             return {"error": "label_selector required"}

@@ -135,9 +135,10 @@ For staff-level systems thinking, architectural trade-offs, and production-scale
     *   🌐 **Network/DNS:** `./scripts/diagnostics/network-diagnostics.sh`
     *   💾 **Storage:** `./scripts/diagnostics/storage-analysis.sh`
     *   📉 **Resources:** `./scripts/diagnostics/resource-analysis.sh`
-3.  **Apply Fixes (Use Caution):**
-    *   `./scripts/fixes/fix-dns-issues.sh`
-    *   `./scripts/fixes/auto-restart-failed-pods.sh`
+3.  **Preview Fixes Before Mutating:**
+    *   `python3 ./k8s-diagnostics-cli.py suggest`
+    *   `python3 ./k8s-diagnostics-cli.py fix --dry-run`
+    *   Use scripts in `scripts/fixes/` only after the root cause and blast radius are clear.
 
 ---
 

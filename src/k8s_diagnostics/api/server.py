@@ -1,4 +1,7 @@
-from fastapi import FastAPI, Response, status
+import os
+from typing import Optional
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
 from prometheus_client import CONTENT_TYPE_LATEST, Gauge, generate_latest
 from ..core.client import K8sClient
 from ..automation.diagnostics import DiagnosticsEngine
@@ -8,8 +11,13 @@ from ..automation.chaos import ChaosEngine
 app = FastAPI(title="K8s Diagnostics API", version="1.1.0")
 k8s = K8sClient()
 diagnostics = DiagnosticsEngine(k8s)
-fixer = AutoFixer(k8s)
-chaos = ChaosEngine(k8s)
+ALLOWED_NAMESPACES = {
+    ns.strip()
+    for ns in os.getenv("K8S_DIAGNOSTICS_ALLOWED_NAMESPACES", "").split(",")
+    if ns.strip()
+}
+fixer = AutoFixer(k8s, allowed_namespaces=ALLOWED_NAMESPACES)
+chaos = ChaosEngine(k8s, allowed_namespaces=ALLOWED_NAMESPACES)
 k8s.fixer = fixer  # provide fixer access for autonomous heal
 
 API_UP = Gauge("k8s_diagnostics_api_up", "Whether the diagnostics API can reach Kubernetes.")
@@ -17,6 +25,55 @@ TOTAL_NODES = Gauge("k8s_cluster_total_nodes", "Total nodes observed in the clus
 READY_NODES = Gauge("k8s_cluster_ready_nodes", "Ready nodes observed in the cluster.")
 FAILED_PODS = Gauge("k8s_pod_failures_total", "Pods not in Running or Succeeded state.")
 CLUSTER_HEALTH_SCORE = Gauge("k8s_cluster_health_score", "Simple health score based on ready nodes.")
+
+
+def _truthy(value: Optional[str]) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _mutations_enabled() -> bool:
+    return _truthy(os.getenv("AUTO_FIX_ENABLED"))
+
+
+def _namespace_allowed(namespace: str) -> bool:
+    return "*" in ALLOWED_NAMESPACES or namespace in ALLOWED_NAMESPACES
+
+
+def require_mutation_access(x_api_key: Optional[str] = Header(default=None, alias="X-API-Key")):
+    """Block write endpoints unless the operator explicitly enables them."""
+    if not _mutations_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Mutating endpoints are disabled. Set AUTO_FIX_ENABLED=true to enable them.",
+        )
+
+    expected_key = os.getenv("K8S_DIAGNOSTICS_API_KEY")
+    if not expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Mutating endpoints require K8S_DIAGNOSTICS_API_KEY to be configured.",
+        )
+    if x_api_key != expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid X-API-Key header.",
+        )
+
+    if not ALLOWED_NAMESPACES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Mutating endpoints require K8S_DIAGNOSTICS_ALLOWED_NAMESPACES to be configured.",
+        )
+
+    return True
+
+
+def require_allowed_namespace(namespace: str) -> None:
+    if not _namespace_allowed(namespace):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Namespace '{namespace}' is outside the remediation allowlist.",
+        )
 
 
 def _refresh_metrics() -> None:
@@ -90,23 +147,29 @@ async def diagnose_network():
     return await diagnostics.check_network()
 
 @app.post("/fix/restart-failed-pods")
-async def restart_failed_pods():
+async def restart_failed_pods(_auth: bool = Depends(require_mutation_access)):
     """Auto-restart failed pods"""
     return await fixer.restart_failed_pods()
 
 @app.post("/fix/cleanup-evicted")
-async def cleanup_evicted():
+async def cleanup_evicted(_auth: bool = Depends(require_mutation_access)):
     """Remove evicted pods"""
     return await fixer.cleanup_evicted_pods()
 
 @app.post("/fix/dns")
-async def fix_dns():
+async def fix_dns(_auth: bool = Depends(require_mutation_access)):
     """Restart unhealthy CoreDNS pods"""
     return await fixer.fix_dns_issues()
 
 @app.post("/fix/scale/{namespace}/{deployment}")
-async def scale_workload(namespace: str, deployment: str, replicas: int):
+async def scale_workload(
+    namespace: str,
+    deployment: str,
+    replicas: int,
+    _auth: bool = Depends(require_mutation_access),
+):
     """Scale a deployment to a desired replica count"""
+    require_allowed_namespace(namespace)
     return await fixer.scale_resources(namespace, deployment, replicas)
 
 @app.get("/metrics/resources")
@@ -125,9 +188,9 @@ async def predict_risk():
     return await diagnostics.predict_risk()
 
 @app.post("/ai/heal")
-async def autonomous_healing():
+async def autonomous_healing(_auth: bool = Depends(require_mutation_access)):
     """Attempt autonomous healing for common issues"""
-    return await diagnostics.autonomous_heal()
+    return await fixer.auto_remediate(diagnostics)
 
 @app.get("/ai/optimize")
 async def optimize_cluster():
@@ -140,8 +203,14 @@ async def provider_diagnostics():
     return diagnostics.provider_diagnostics()
 
 @app.post("/chaos/inject")
-async def inject_chaos(namespace: str, label_selector: str, dry_run: bool = True):
+async def inject_chaos(
+    namespace: str,
+    label_selector: str,
+    dry_run: bool = True,
+    _auth: bool = Depends(require_mutation_access),
+):
     """Inject pod failure (dry-run by default)"""
+    require_allowed_namespace(namespace)
     return await chaos.inject_pod_failure(namespace, label_selector, dry_run)
 
 if __name__ == "__main__":

@@ -102,15 +102,15 @@ kubectl describe node <node>
 kubectl get pvc -n <namespace>
 ```
 
-Common causes & Fixes:
+Candidate causes and evidence-backed fixes:
 - **Unschedulable (CPU/Memory):** The cluster is full.
-  - *Fix:* `kubectl scale deployment <name> --replicas=0` to free up space, or `kubectl edit deployment <name>` to lower requests.
+  - *Fix after evidence:* scale non-critical workloads only with approval, lower excessive requests in the source manifest, or add capacity.
 - **Taints without tolerations:** Node doesn't allow the pod.
   - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "add", "path": "/spec/template/spec/tolerations", "value": [{"key": "key", "operator": "Exists"}]}]'`
 - **Node selectors match no node:**
   - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "remove", "path": "/spec/template/spec/nodeSelector"}]'`
 - **Unbound PVCs:**
-  - *Fix:* Verify StorageClass exists, then delete and recreate the PVC/Pod.
+  - *Fix after evidence:* verify StorageClass and provisioner first. Do not delete a production PVC unless the data owner confirms it is disposable.
 
 #### `CrashLoopBackOff` or `Error`
 
@@ -120,7 +120,7 @@ kubectl describe pod <pod> -n <namespace>
 kubectl get pod <pod> -n <namespace> -o yaml
 ```
 
-Common causes & Fixes:
+Candidate causes and evidence-backed fixes:
 - **Bad command or entrypoint:**
   - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/command", "value": ["new-command"]}]'`
 - **Missing environment variable, Secret, or ConfigMap key:**
@@ -138,7 +138,7 @@ Common causes & Fixes:
 kubectl describe pod <pod> -n <namespace>
 ```
 
-Common causes & Fixes:
+Candidate causes and evidence-backed fixes:
 - **Wrong image tag:**
   - *Fix:* `kubectl set image deployment/<name> <container>=<image>:<correct-tag> -n <ns>`
 - **Missing image pull secret:**
@@ -157,7 +157,7 @@ kubectl get ingress -n <namespace>
 kubectl get networkpolicy -A
 ```
 
-Common causes & Fixes:
+Candidate causes and evidence-backed fixes:
 - **Readiness probe failing (pod never enters service endpoints):**
   - *Fix:* `kubectl patch deployment <name> -n <ns> --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/readinessProbe/httpGet/path", "value": "/healthz"}]'`
 - **Service selector does not match pod labels:**
@@ -178,7 +178,7 @@ kubectl get endpoints -A
 kubectl logs -n kube-system -l k8s-app=kube-dns --tail=50
 ```
 
-Common causes & Fixes:
+Candidate causes and evidence-backed fixes:
 - **CoreDNS pods are crashing/failing:**
   - *Fix:* `kubectl delete pod -n kube-system -l k8s-app=kube-dns` to force a restart.
 - **Node networking issues preventing DNS queries:**

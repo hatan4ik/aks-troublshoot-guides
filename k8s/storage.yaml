@@ -111,6 +111,7 @@ spec:
           containers:
           - name: backup
             image: k8s-diagnostics:latest
+            imagePullPolicy: IfNotPresent
             command: ["/bin/bash"]
             args: ["/scripts/backup-diagnostics.sh"]
             volumeMounts:
@@ -146,6 +147,7 @@ spec:
           containers:
           - name: cleanup
             image: k8s-diagnostics:latest
+            imagePullPolicy: IfNotPresent
             command: ["/bin/bash"]
             args: ["/scripts/cleanup-old-data.sh"]
             volumeMounts:

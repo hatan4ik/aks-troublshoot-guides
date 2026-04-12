@@ -16,9 +16,9 @@ spec:
   - Ingress
   - Egress
   ingress:
-  # Allow internal cluster access
+  # Allow same-namespace diagnostics clients only. Use port-forward for ad hoc access.
   - from:
-    - namespaceSelector: {}
+    - podSelector: {}
     ports:
     - protocol: TCP
       port: 8000

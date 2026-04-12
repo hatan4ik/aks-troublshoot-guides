@@ -10,6 +10,11 @@ requests==2.31.0
 # Optional — TLS certificate expiry check
 # cryptography>=41.0.0
 
+# Optional — experimental AI predictor helpers
+# pip install numpy scikit-learn
+# numpy>=1.26.0
+# scikit-learn>=1.4.0
+
 # Optional — AKS (Azure) provider checks
 # pip install azure-identity azure-mgmt-network azure-mgmt-compute
 #             azure-mgmt-containerservice azure-mgmt-authorization

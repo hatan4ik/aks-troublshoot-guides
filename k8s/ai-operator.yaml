@@ -22,12 +22,17 @@ spec:
       containers:
       - name: ai-operator
         image: k8s-diagnostics:latest
+        imagePullPolicy: IfNotPresent
         command: ["python", "-m", "src.k8s_diagnostics.ai.operator"]
         env:
         - name: AI_ENABLED
           value: "true"
         - name: AUTO_HEAL_ENABLED
-          value: "true"
+          value: "false"
+        - name: AUTO_HEAL_APPLY
+          value: "false"
+        - name: K8S_DIAGNOSTICS_ALLOWED_NAMESPACES
+          value: "practice"
         - name: CHAOS_ENABLED
           value: "false"
         resources:
@@ -53,6 +58,7 @@ spec:
           containers:
           - name: optimizer
             image: k8s-diagnostics:latest
+            imagePullPolicy: IfNotPresent
             command: ["python", "-c"]
             args:
             - |
@@ -78,7 +84,7 @@ data:
   config.yaml: |
     ai:
       prediction_interval: 300  # 5 minutes
-      healing_enabled: true
+      healing_enabled: false
       chaos_engineering: false
       optimization_schedule: "0 */6 * * *"
     
@@ -90,6 +96,6 @@ data:
     
     actions:
       auto_scale: true
-      auto_restart: true
+      auto_restart: false
       auto_optimize: true
       notify_teams: true

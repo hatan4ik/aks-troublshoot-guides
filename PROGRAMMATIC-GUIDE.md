@@ -10,6 +10,8 @@ make api
 make build deploy
 ```
 
+Mutating API endpoints are disabled by default. To enable them in a lab, apply `k8s/remediation-rbac.yaml`, set `AUTO_FIX_ENABLED=true`, configure `K8S_DIAGNOSTICS_ALLOWED_NAMESPACES`, and send the `X-API-Key` header using the value from `K8S_DIAGNOSTICS_API_KEY`.
+
 ## REST API (Available Endpoints)
 ```bash
 # Health snapshot
@@ -28,19 +30,19 @@ curl http://localhost:8000/issues/detect
 curl http://localhost:8000/metrics/resources
 
 # Remediations
-curl -X POST http://localhost:8000/fix/restart-failed-pods
-curl -X POST http://localhost:8000/fix/cleanup-evicted
-curl -X POST http://localhost:8000/fix/dns
-curl -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
+curl -H "X-API-Key: $K8S_DIAGNOSTICS_API_KEY" -X POST http://localhost:8000/fix/restart-failed-pods
+curl -H "X-API-Key: $K8S_DIAGNOSTICS_API_KEY" -X POST http://localhost:8000/fix/cleanup-evicted
+curl -H "X-API-Key: $K8S_DIAGNOSTICS_API_KEY" -X POST http://localhost:8000/fix/dns
+curl -H "X-API-Key: $K8S_DIAGNOSTICS_API_KEY" -X POST "http://localhost:8000/fix/scale/default/my-deploy?replicas=3"
 
 # Heuristics and provider-aware checks
 curl http://localhost:8000/ai/predict
-curl -X POST http://localhost:8000/ai/heal
+curl -H "X-API-Key: $K8S_DIAGNOSTICS_API_KEY" -X POST http://localhost:8000/ai/heal
 curl http://localhost:8000/ai/optimize
 curl http://localhost:8000/diagnose/provider
 
 # Chaos (dry-run by default)
-curl -X POST "http://localhost:8000/chaos/inject?namespace=default&label_selector=app=my-app&dry_run=true"
+curl -H "X-API-Key: $K8S_DIAGNOSTICS_API_KEY" -X POST "http://localhost:8000/chaos/inject?namespace=default&label_selector=app=my-app&dry_run=true"
 ```
 `/issues/detect` reports nodes not ready, failed/pending pods, image pull errors, DNS/CoreDNS health, PVC binds, and pending load balancers.
 
@@ -52,7 +54,7 @@ from src.k8s_diagnostics.automation.fixes import AutoFixer
 
 k8s = K8sClient()
 diagnostics = DiagnosticsEngine(k8s)
-fixer = AutoFixer(k8s)
+fixer = AutoFixer(k8s, allowed_namespaces=["practice"])
 
 health = k8s.get_cluster_health()
 pod_info = await diagnostics.diagnose_pod("default", "my-pod")
@@ -75,10 +77,12 @@ python k8s-diagnostics-cli.py network                   # network/DNS check
 python k8s-diagnostics-cli.py detect                    # auto-detect issues
 
 # Fixes
-python k8s-diagnostics-cli.py fix                       # restart failed pods
-python k8s-diagnostics-cli.py cleanup                   # evicted pods
-python k8s-diagnostics-cli.py dnsfix                    # CoreDNS
-python k8s-diagnostics-cli.py scale default my-deploy 3 # scale deployment
+python k8s-diagnostics-cli.py suggest                   # detect + dry-run remediation plan
+python k8s-diagnostics-cli.py fix --dry-run             # dry-run safe remediations
+python k8s-diagnostics-cli.py fix                       # apply safe remediations
+python k8s-diagnostics-cli.py cleanup --dry-run         # preview evicted pod cleanup
+python k8s-diagnostics-cli.py dnsfix --dry-run          # preview CoreDNS restart
+python k8s-diagnostics-cli.py scale default my-deploy 3 --dry-run
 
 # Heuristics / automation
 python k8s-diagnostics-cli.py predict                   # risk prediction
@@ -86,8 +90,9 @@ python k8s-diagnostics-cli.py heal                      # autonomous healing
 python k8s-diagnostics-cli.py optimize                  # cost hints
 python k8s-diagnostics-cli.py provider                  # provider-aware diagnostics
 
-# Chaos (dry-run default; set last arg false to execute)
-python k8s-diagnostics-cli.py chaos default app=my-app true
+# Chaos (dry-run default; pass live to execute)
+python k8s-diagnostics-cli.py chaos default app=my-app
+python k8s-diagnostics-cli.py chaos default app=my-app live
 ```
 
 ## Integration Recipes

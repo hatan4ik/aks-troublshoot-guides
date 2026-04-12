@@ -53,7 +53,7 @@ spec:
       containers:
       - name: api
         image: k8s-diagnostics:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - name: http
           containerPort: 8000
@@ -68,9 +68,17 @@ spec:
         - name: METRICS_ENABLED
           value: "true"
         - name: AUTO_FIX_ENABLED
-          value: "true"
+          value: "false"
+        - name: K8S_DIAGNOSTICS_ALLOWED_NAMESPACES
+          value: "practice"
+        - name: K8S_DIAGNOSTICS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: k8s-diagnostics-api-auth
+              key: api-key
+              optional: true
         - name: CLUSTER_NAME
-          value: "production"
+          value: "local"
         livenessProbe:
           httpGet:
             path: /livez
@@ -175,7 +183,7 @@ rules:
 # Core resource access for diagnostics
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["get", "list", "watch", "delete"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["pods/log"]
   verbs: ["get"]
@@ -187,7 +195,7 @@ rules:
   verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["events"]
-  verbs: ["get", "list", "watch", "create"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["persistentvolumes", "persistentvolumeclaims"]
   verbs: ["get", "list", "watch"]
@@ -198,13 +206,13 @@ rules:
 # Apps and workloads
 - apiGroups: ["apps"]
   resources: ["deployments"]
-  verbs: ["get", "list", "watch", "patch", "update"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: ["apps"]
   resources: ["replicasets", "daemonsets", "statefulsets"]
   verbs: ["get", "list", "watch"]
 - apiGroups: ["apps"]
   resources: ["deployments/scale"]
-  verbs: ["get", "patch", "update"]
+  verbs: ["get"]
 
 # Batch jobs
 - apiGroups: ["batch"]
@@ -230,7 +238,7 @@ rules:
 # Autoscaling
 - apiGroups: ["autoscaling"]
   resources: ["horizontalpodautoscalers"]
-  verbs: ["get", "list", "watch", "patch", "update"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: ["autoscaling.k8s.io"]
   resources: ["verticalpodautoscalers"]
   verbs: ["get", "list", "watch"]
@@ -253,6 +261,13 @@ rules:
   resources: ["*"]
   verbs: ["get", "list", "watch"]
 - apiGroups: ["argoproj.io"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - "source.toolkit.fluxcd.io"
+  - "kustomize.toolkit.fluxcd.io"
+  - "helm.toolkit.fluxcd.io"
+  - "notification.toolkit.fluxcd.io"
   resources: ["*"]
   verbs: ["get", "list", "watch"]
 
@@ -289,7 +304,7 @@ rules:
 # Enhanced permissions in kube-system namespace
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["get", "list", "watch", "delete"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["services", "configmaps"]
   verbs: ["get", "list", "watch"]

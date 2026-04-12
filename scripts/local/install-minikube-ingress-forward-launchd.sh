@@ -11,8 +11,8 @@ SERVICE="${SERVICE:-svc/ingress-nginx-controller}"
 LOCAL_PORT="${LOCAL_PORT:-80}"
 SERVICE_PORT="${SERVICE_PORT:-80}"
 ADDRESS="${ADDRESS:-127.0.0.1,::1}"
-STDOUT_LOG="${STDOUT_LOG:-/tmp/minikube-ingress-forward.out.log}"
-STDERR_LOG="${STDERR_LOG:-/tmp/minikube-ingress-forward.err.log}"
+STDOUT_LOG="${STDOUT_LOG:-/usr/local/var/log/minikube-ingress-forward.out.log}"
+STDERR_LOG="${STDERR_LOG:-/usr/local/var/log/minikube-ingress-forward.err.log}"
 
 if [ -z "${KUBECTL:-}" ]; then
   if command -v kubectl >/dev/null 2>&1; then
@@ -82,6 +82,14 @@ warn_if_port_busy() {
   fi
 }
 
+ensure_log_paths() {
+  sudo install -d -o root -g wheel -m 0755 "$(dirname "${STDOUT_LOG}")"
+  sudo install -d -o root -g wheel -m 0755 "$(dirname "${STDERR_LOG}")"
+  sudo touch "${STDOUT_LOG}" "${STDERR_LOG}"
+  sudo chown root:wheel "${STDOUT_LOG}" "${STDERR_LOG}"
+  sudo chmod 0644 "${STDOUT_LOG}" "${STDERR_LOG}"
+}
+
 write_plist() {
   local tmp_plist
   tmp_plist="$(mktemp)"
@@ -112,9 +120,12 @@ write_plist() {
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <true/>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
   <key>ThrottleInterval</key>
-  <integer>15</integer>
+  <integer>30</integer>
   <key>StandardOutPath</key>
   <string>${STDOUT_LOG}</string>
   <key>StandardErrorPath</key>
@@ -131,12 +142,13 @@ install_daemon() {
   require_macos
   require_file "${KUBECTL}" "kubectl binary"
   require_file "${KUBECONFIG_PATH}" "kubeconfig"
-  warn_if_port_busy
 
   if sudo launchctl print "system/${LABEL}" >/dev/null 2>&1; then
     sudo launchctl bootout system "${PLIST}" || true
   fi
 
+  warn_if_port_busy
+  ensure_log_paths
   write_plist
   sudo launchctl bootstrap system "${PLIST}"
   sudo launchctl enable "system/${LABEL}"
@@ -165,6 +177,11 @@ status_daemon() {
   if sudo launchctl print "system/${LABEL}"; then
     echo
     echo "[OK] ${LABEL} is installed."
+    if command -v lsof >/dev/null 2>&1; then
+      echo
+      echo "[INFO] Current listener on local TCP port ${LOCAL_PORT}:"
+      lsof -nP -iTCP:"${LOCAL_PORT}" -sTCP:LISTEN || true
+    fi
   else
     echo "[WARN] ${LABEL} is not installed or not loaded."
     exit 1

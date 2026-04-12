@@ -282,6 +282,8 @@ Healthy outcome:
 
 After Argo CD and Flux CD are installed, use the demo manifests in `gitops-demo/`.
 
+The demo CRs point at `https://github.com/hatan4ik/aks-troublshoot-guides`. If you are using a fork, update the repo URL in `gitops-demo/argocd/application.yaml` and `gitops-demo/flux/gitrepository.yaml` before applying them.
+
 For the full walkthrough, see:
 
 ```text

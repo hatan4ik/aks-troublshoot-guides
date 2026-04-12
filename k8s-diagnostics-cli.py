@@ -393,9 +393,9 @@ class DiagnosticsCLI:
         print(json.dumps(result, indent=2))
 
 
-def _usage():
+def _usage(exit_code: int = 1):
     print(__doc__)
-    sys.exit(1)
+    sys.exit(exit_code)
 
 
 def _maybe_reexec_project_venv() -> bool:
@@ -451,6 +451,9 @@ def main():
     args, flags = _parse_args(sys.argv[1:])
     dry_run = "--dry-run" in flags
     command = args[0] if args else ""
+
+    if "--help" in flags or command in ("-h", "help"):
+        _usage(0)
 
     cli = DiagnosticsCLI()
 

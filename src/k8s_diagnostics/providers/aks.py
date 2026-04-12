@@ -16,7 +16,7 @@ How Azure metadata is resolved:
   (MC_<rg>_<cluster>_<region> → cluster name and resource group are derivable).
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from .base import BaseProviderChecker, ProviderIssue
 
 # Minimum IPs to consider a subnet healthy
@@ -77,7 +77,7 @@ class AKSChecker(BaseProviderChecker):
             if not provider_id.startswith("azure://"):
                 return None
 
-            parts = provider_id.lstrip("azure:///").split("/")
+            parts = provider_id.removeprefix("azure:///").split("/")
             # parts: ['subscriptions', <sub>, 'resourceGroups', <rg>, 'providers', ...]
             if len(parts) < 4 or parts[0] != "subscriptions":
                 return None
@@ -197,20 +197,27 @@ class AKSChecker(BaseProviderChecker):
                     r for r in (nsg.security_rules or []) + (nsg.default_security_rules or [])
                     if r.access and r.access.lower() == "deny"
                 ]
-                blocked = []
+                blocked = set()
                 for name, (port, direction, purpose) in _NSG_REQUIRED_PORTS.items():
                     for rule in deny_rules:
                         rule_dir = (rule.direction or "").lower()
-                        dest_port = str(rule.destination_port_range or "")
-                        src_port = str(rule.source_port_range or "")
-                        if rule_dir == direction[:3]:  # "out" or "in"
-                            if dest_port in ("*", str(port)) or src_port in ("*", str(port)):
-                                blocked.append(f"port {port}/{direction} ({purpose})")
+                        if rule_dir != direction:
+                            continue
+
+                        dest_ports = []
+                        if rule.destination_port_range:
+                            dest_ports.append(str(rule.destination_port_range))
+                        dest_ports.extend(
+                            str(value)
+                            for value in (getattr(rule, "destination_port_ranges", None) or [])
+                        )
+                        if any(self._port_matches(port, candidate) for candidate in dest_ports):
+                            blocked.add(f"port {port}/{direction} ({purpose})")
                 if blocked:
                     issues.append(ProviderIssue(
                         "aks_nsg_blocking", "high",
                         f"NSG '{nsg.name}': deny rules may block required AKS ports: "
-                        + ", ".join(blocked),
+                        + ", ".join(sorted(blocked)),
                         "Review NSG rules: az network nsg rule list -g "
                         f"{meta['node_resource_group']} --nsg-name {nsg.name} "
                         "--include-default -o table",
@@ -218,6 +225,15 @@ class AKSChecker(BaseProviderChecker):
         except Exception as e:
             issues.append(self._check_error("aks_nsg_blocking", str(e)))
         return issues
+
+    @staticmethod
+    def _port_matches(port: int, candidate: str) -> bool:
+        if candidate == "*" or candidate == str(port):
+            return True
+        if "-" not in candidate:
+            return False
+        start, end = candidate.split("-", 1)
+        return start.isdigit() and end.isdigit() and int(start) <= port <= int(end)
 
     # ─────────────────────────────────────────────────────────────
     # Check 3: AcrPull role on kubelet identity
