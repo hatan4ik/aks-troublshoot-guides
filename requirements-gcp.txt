@@ -1,0 +1,4 @@
+-r requirements.txt
+google-cloud-container>=2.40.0
+google-auth>=2.26.0
+google-api-python-client>=2.115.0

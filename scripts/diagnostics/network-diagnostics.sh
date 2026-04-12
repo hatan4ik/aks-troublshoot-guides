@@ -44,7 +44,7 @@ check_dns() {
     
     # Test DNS resolution
     print_status "INFO" "Testing DNS resolution..."
-    kubectl run dns-test-$(date +%s) --image=busybox --rm -it --restart=Never -- nslookup kubernetes.default 2>/dev/null && \
+    timeout 10s kubectl run dns-test-$(date +%s) --image=busybox --rm -it --restart=Never -- nslookup kubernetes.default 2>/dev/null && \
         print_status "OK" "DNS resolution working" || \
         print_status "ERROR" "DNS resolution failed"
     
@@ -123,10 +123,10 @@ EOF
         return 1
     }
     
-    # Test connectivity to kubernetes service
-    kubectl exec netshoot-test -- nslookup kubernetes.default && \
+    # Test connectivity to kubernetes service (5s timeout prevents hanging if pod is stuck)
+    timeout 5s kubectl exec netshoot-test -- nslookup kubernetes.default && \
         print_status "OK" "DNS resolution from pod working" || \
-        print_status "ERROR" "DNS resolution from pod failed"
+        print_status "ERROR" "DNS resolution from pod failed (timeout or error)"
     
     # Cleanup
     kubectl delete pod netshoot-test --ignore-not-found=true

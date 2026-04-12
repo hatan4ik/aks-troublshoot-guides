@@ -256,14 +256,14 @@ class DiagnosticsCLI:
                     ),
                 }
             elif issue["type"] == "high_restart_count":
-                entry["suggested_fix"] = {
-                    "action": "manual_required",
-                    "hint": (
-                        "Use 'diagnose <ns> <pod>' to see exit code analysis. "
-                        "Exit 137=OOMKill (raise memory limits), "
-                        "Exit 143=SIGTERM (fix liveness probe initialDelaySeconds)"
-                    ),
-                }
+                # High restart count → check for aggressive liveness probes first
+                fix = await self.fixer.fix_aggressive_liveness_probes(dry_run=True)
+                entry["suggested_fix"] = fix
+                entry["suggested_fix"]["hint"] = (
+                    "Use 'diagnose <ns> <pod>' to see exit code analysis. "
+                    "Exit 137=OOMKill (raise memory limits), "
+                    "Exit 143=SIGTERM (fix liveness probe initialDelaySeconds)"
+                )
             elif issue["type"] == "probe_failures":
                 entry["suggested_fix"] = {
                     "action": "manual_required",
@@ -273,14 +273,14 @@ class DiagnosticsCLI:
                     ),
                 }
             elif issue["type"] == "crashloop_backoff":
-                entry["suggested_fix"] = {
-                    "action": "manual_required",
-                    "hint": (
-                        "kubectl logs <pod> -n <ns> --previous — "
-                        "then use 'diagnose <ns> <pod>' for exit code interpretation. "
-                        "Exit 137=OOMKill, Exit 127=bad command, Exit 1=app error"
-                    ),
-                }
+                # CrashLoopBackOff pods are caught by restart_failed_pods; dry-run it
+                fix = await self.fixer.restart_failed_pods(dry_run=True)
+                entry["suggested_fix"] = fix
+                entry["suggested_fix"]["hint"] = (
+                    "kubectl logs <pod> -n <ns> --previous for root cause; "
+                    "Exit 137=OOMKill (raise memory limits), "
+                    "Exit 127=bad command (check entrypoint), Exit 1=app error"
+                )
             elif issue["type"] == "stuck_terminating":
                 entry["suggested_fix"] = {
                     "action": "manual_required",

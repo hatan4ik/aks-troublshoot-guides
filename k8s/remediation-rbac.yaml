@@ -6,6 +6,24 @@ metadata:
     app: k8s-diagnostics-api
     component: remediation
 rules:
+  # ── Read-only — diagnostics (list/describe before any mutation) ─────────────
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps", "namespaces", "events", "nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io", "extensions"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+
+  # ── Mutating — remediation (scoped to the minimum required verbs) ───────────
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["delete"]
@@ -14,9 +32,6 @@ rules:
     verbs: ["patch", "update"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["patch", "update"]
-  - apiGroups: ["apps"]
-    resources: ["deployments/scale"]
     verbs: ["patch", "update"]
   - apiGroups: ["networking.k8s.io", "extensions"]
     resources: ["ingresses"]

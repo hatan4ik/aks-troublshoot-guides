@@ -101,7 +101,7 @@ class AutoFixer:
 
         for pod in candidates:
             ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
-            if self._skip_disallowed_namespace(pod.metadata.namespace, f"pod/{ref}"):
+            if self._skip_disallowed_namespace(results, pod.metadata.namespace, f"pod/{ref}"):
                 continue
 
             if not self._has_controller(pod):
@@ -115,6 +115,22 @@ class AutoFixer:
                     api_call="CoreV1Api.delete_namespaced_pod",
                     kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
                     change={"reason": "pod has no ownerReferences; deletion may not recreate it"},
+                )
+                continue
+
+            # PDB guard — never violate a PodDisruptionBudget
+            pdb_violation = self._pdb_would_be_violated(pod)
+            if pdb_violation:
+                results["skipped"].append(f"{ref} ({pdb_violation})")
+                self._record_operation(
+                    results,
+                    dry_run=dry_run,
+                    status="skipped",
+                    action="delete_pod_for_controller_recreate",
+                    resource=f"pod/{ref}",
+                    api_call="CoreV1Api.delete_namespaced_pod",
+                    kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
+                    change={"reason": pdb_violation},
                 )
                 continue
 
@@ -144,7 +160,8 @@ class AutoFixer:
                     change={"reason": "controller-owned failed/crashlooping pod"},
                 )
             except ApiException as e:
-                results["failed"].append(f"{ref}: {str(e)}")
+                err = self._categorize_api_exception(e)
+                results["failed"].append({ref: err})
                 self._record_operation(
                     results,
                     dry_run=dry_run,
@@ -153,7 +170,7 @@ class AutoFixer:
                     resource=f"pod/{ref}",
                     api_call="CoreV1Api.delete_namespaced_pod",
                     kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
-                    error=str(e),
+                    error=err,
                 )
 
         return results
@@ -169,7 +186,7 @@ class AutoFixer:
 
         for pod in evicted:
             ref = f"{pod.metadata.namespace}/{pod.metadata.name}"
-            if self._skip_disallowed_namespace(pod.metadata.namespace, f"pod/{ref}"):
+            if self._skip_disallowed_namespace(results, pod.metadata.namespace, f"pod/{ref}"):
                 continue
 
             if dry_run:
@@ -197,7 +214,8 @@ class AutoFixer:
                     change={"reason": "pod status reason is Evicted"},
                 )
             except ApiException as e:
-                results["failed"].append(f"{ref}: {str(e)}")
+                err = self._categorize_api_exception(e)
+                results["failed"].append({ref: err})
                 self._record_operation(
                     results,
                     dry_run=dry_run,
@@ -206,7 +224,7 @@ class AutoFixer:
                     resource=f"pod/{ref}",
                     api_call="CoreV1Api.delete_namespaced_pod",
                     kubectl_equivalent=f"kubectl delete pod {pod.metadata.name} -n {pod.metadata.namespace}",
-                    error=str(e),
+                    error=err,
                 )
 
         return results
@@ -234,7 +252,7 @@ class AutoFixer:
         if not self._namespace_allowed("kube-system"):
             for pod in unhealthy:
                 ref = f"kube-system/{pod.metadata.name}"
-                self._skip_disallowed_namespace("kube-system", f"pod/{ref}")
+                self._skip_disallowed_namespace(results, "kube-system", f"pod/{ref}")
             results["status"] = "skipped"
             return results
 
@@ -265,7 +283,8 @@ class AutoFixer:
                     change={"reason": "CoreDNS pod is not running or not ready"},
                 )
             except ApiException as e:
-                results["status"] = f"error: {str(e)}"
+                err = self._categorize_api_exception(e)
+                results["status"] = f"error: {err['category']} (HTTP {err['http_status']})"
                 self._record_operation(
                     results,
                     dry_run=dry_run,
@@ -998,7 +1017,7 @@ class AutoFixer:
                 "status": "scaled",
             }
         except ApiException as e:
-            return {"error": str(e)}
+            return {"error": self._categorize_api_exception(e)}
 
     async def apply_resource_limits(
         self,
@@ -1046,7 +1065,7 @@ class AutoFixer:
                 "status": "applied",
             }
         except ApiException as e:
-            return {"error": str(e)}
+            return {"error": self._categorize_api_exception(e)}
 
     async def auto_remediate(self, diagnostics_engine, dry_run: bool = False) -> Dict:
         """Detect issues and apply safe remediations."""
@@ -1175,4 +1194,94 @@ class AutoFixer:
             return matching[0]
         if len(service_names) == 1:
             return next(iter(service_names))
+        return None
+
+    # ── ApiException helpers ────────────────────────────────────────────────
+
+    @staticmethod
+    def _categorize_api_exception(e: ApiException) -> Dict:
+        """Return a structured error dict from an ApiException with actionable guidance.
+
+        HTTP status semantics:
+          403  Forbidden       — RBAC missing; check ClusterRole / ServiceAccount
+          404  Not Found       — resource was deleted between list and delete/patch
+          409  Conflict        — optimistic concurrency; re-read and retry
+          422  Unprocessable   — invalid patch payload; logic bug
+          429  Too Many Reqs   — API server rate-limit; back off and retry
+          500  Internal Error  — transient API server failure; retry after brief pause
+          503  Unavailable     — API server overloaded; retry
+        """
+        status = getattr(e, "status", None)
+        body = getattr(e, "body", str(e))
+
+        if status == 403:
+            category = "forbidden"
+            hint = "Check ClusterRole/ClusterRoleBinding for the service account running this tool."
+        elif status == 404:
+            category = "not_found"
+            hint = "Resource no longer exists — it may have been deleted by another actor."
+        elif status == 409:
+            category = "conflict"
+            hint = "Optimistic concurrency conflict — re-read the resource and retry the patch."
+        elif status == 422:
+            category = "invalid_patch"
+            hint = "Patch payload was rejected by the API server — check field names and types."
+        elif status in (429, 503):
+            category = "rate_limited_or_unavailable"
+            hint = "API server is rate-limiting or temporarily unavailable — retry after a pause."
+        elif status and status >= 500:
+            category = "server_error"
+            hint = "Transient API server error — retry after a brief pause."
+        else:
+            category = "unknown"
+            hint = "Inspect the error body for details."
+
+        return {
+            "http_status": status,
+            "category": category,
+            "hint": hint,
+            "detail": body if isinstance(body, str) else json.dumps(body),
+        }
+
+    def _pdb_would_be_violated(self, pod) -> Optional[str]:
+        """Return a human-readable reason string if deleting this pod would violate a PDB.
+
+        Returns None if it is safe to delete the pod (no matching PDB, or disruption budget
+        has remaining capacity).  Returns a non-empty string with the violation reason if
+        the deletion should be skipped to protect availability.
+        """
+        namespace = pod.metadata.namespace
+        pod_labels = pod.metadata.labels or {}
+
+        try:
+            pdbs = self.k8s.policy_v1.list_namespaced_pod_disruption_budget(namespace).items
+        except ApiException:
+            # If we can't read PDBs (e.g. old cluster without the API), allow the deletion.
+            return None
+        except AttributeError:
+            # k8s client doesn't expose policy_v1 — skip PDB check gracefully.
+            return None
+
+        for pdb in pdbs:
+            selector = (pdb.spec.selector or {})
+            match_labels = getattr(selector, "match_labels", None) or {}
+            if not match_labels:
+                continue
+            # Does the pod's label set satisfy the PDB selector?
+            if not all(pod_labels.get(k) == v for k, v in match_labels.items()):
+                continue
+
+            # Pod matches this PDB — check disruption budget.
+            status = pdb.status
+            disruptions_allowed = getattr(status, "disruptions_allowed", None)
+            if disruptions_allowed is not None and disruptions_allowed < 1:
+                pdb_name = pdb.metadata.name
+                min_available = getattr(pdb.spec, "min_available", None)
+                max_unavailable = getattr(pdb.spec, "max_unavailable", None)
+                return (
+                    f"PDB '{namespace}/{pdb_name}' allows 0 disruptions "
+                    f"(minAvailable={min_available}, maxUnavailable={max_unavailable}); "
+                    "skipping to protect availability"
+                )
+
         return None
