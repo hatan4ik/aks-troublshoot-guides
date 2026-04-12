@@ -23,10 +23,12 @@ gitops-demo/
 │       ├── ingress.yaml
 │       └── kustomization.yaml
 ├── argocd/
-│   └── application.yaml     # Argo CD Application CR  (apply once)
+│   ├── application.yaml     # Argo CD demo Application CR  (apply once)
+│   └── multi-app-isolation-application.yaml # Optional Argo CD isolation blueprint
 └── flux/
     ├── gitrepository.yaml   # Flux GitRepository source (apply once)
-    └── kustomization.yaml   # Flux Kustomization CR    (apply once)
+    ├── kustomization.yaml   # Flux demo Kustomization CR (apply once)
+    └── multi-app-isolation-kustomization.yaml # Optional Flux isolation blueprint
 ```
 
 ---
@@ -374,6 +376,52 @@ kubectl delete gitrepository aks-troublshoot-guides -n flux-system
 ---
 
 ## Part 3 — GitOps loop in practice
+
+## Optional — Deploy the Multi-Application Isolation Blueprint
+
+The isolation blueprint lives in `k8s/multi-app-isolation/` and creates two isolated demo apps:
+
+| App | Namespace | Hostname | Service |
+|-----|-----------|----------|---------|
+| app-a | `app-a` | `app-a.localhost` | `web.app-a.svc.cluster.local` |
+| app-b | `app-b` | `app-b.localhost` | `web.app-b.svc.cluster.local` |
+
+Important: choose **one** controller to own this blueprint. Do not apply both the Argo CD Application and the Flux Kustomization for the same path unless you intentionally want to test GitOps controller conflict.
+
+Before using either controller, commit and push the `k8s/multi-app-isolation/` files to the Git remote referenced by the controller. GitOps controllers reconcile from Git, not from uncommitted files on your laptop.
+
+Deploy with Argo CD:
+
+```sh
+kubectl apply -f gitops-demo/argocd/multi-app-isolation-application.yaml
+kubectl get application multi-app-isolation -n argocd
+kubectl get pods,svc,ingress,networkpolicy -n app-a
+kubectl get pods,svc,ingress,networkpolicy -n app-b
+```
+
+Deploy with Flux CD:
+
+```sh
+kubectl apply -f gitops-demo/flux/gitrepository.yaml
+kubectl apply -f gitops-demo/flux/multi-app-isolation-kustomization.yaml
+kubectl get gitrepository aks-troublshoot-guides -n flux-system
+kubectl get kustomization multi-app-isolation -n flux-system
+kubectl get pods,svc,ingress,networkpolicy -n app-a
+kubectl get pods,svc,ingress,networkpolicy -n app-b
+```
+
+Access through the same local ingress port-80 path used by the other demo apps:
+
+```text
+http://app-a.localhost
+http://app-b.localhost
+```
+
+If the local ingress port-forward is down, use the persistent launchd helper:
+
+```sh
+sudo ./scripts/local/install-minikube-ingress-forward-launchd.sh restart
+```
 
 ## Friendly local URLs with Ingress
 

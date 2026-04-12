@@ -6,6 +6,8 @@ Design cluster networking for reliability, IP scale, and security. Cover CNI cho
 ## Key Decisions
 - **CNI**: Azure CNI vs Kubenet (AKS); AWS VPC CNI vs Cilium/Calico (EKS); choose for IP scale and policy needs.
 - **Ingress**: L7 ingress controller (Nginx, AGIC, ALB) with TLS termination and WAF upstream.
+- **FQDN Service Access**: standardize DNS -> TLS/WAF/Gateway or Ingress -> Service -> Pods; see [Cloud FQDN Service Access](../cloud-fqdn-service-access.md).
+- **Multi-App Isolation**: separate apps by namespace, hostnames, policies, identities, and quotas; see [Multi-Application Isolation Blueprint](../multi-application-isolation-blueprint.md).
 - **Network Policies**: Default-deny + allow lists; isolate system namespaces.
 - **Egress**: NAT Gateway/User Defined Routes (AKS) or NAT Gateway/egress-only (EKS); restrict via policies.
 
@@ -30,6 +32,7 @@ kubectl get networkpolicies -A
 ## Prevention & Patterns
 - Reserve IP budgets per node pool; enforce NetworkPolicy defaults.
 - Standardize ingress annotations (timeouts, TLS, WAF).
+- Automate DNS through Azure DNS, Route 53, Cloud DNS, or ExternalDNS rather than publishing raw load balancer IPs.
 - Use liveness/readiness timeouts aligned to upstream LB health checks.
 
 ## Automation Hooks

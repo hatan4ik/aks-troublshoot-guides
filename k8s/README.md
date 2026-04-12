@@ -6,6 +6,7 @@ Manifests and RBAC for running the Diagnostics API in-cluster.
 ## Files
 - `deployment.yaml` - Deployment, Service, ServiceAccount, read-only RBAC.
 - `remediation-rbac.yaml` - Optional write RBAC for guarded remediation endpoints.
+- `multi-app-isolation/` - Applyable two-app namespace, RBAC, quota, NetworkPolicy, Service, and Ingress isolation example.
 
 ## Usage
 ```bash
@@ -46,6 +47,7 @@ Then send mutating requests with `X-API-Key`. Do not set the allowlist to `*` ou
 
 ## Notes
 - The base manifest exposes the API only as an internal `ClusterIP` service. Use [networking.yaml](./networking.yaml) if you need ingress-based access.
+- For multiple applications sharing one cluster, start with [multi-app-isolation](./multi-app-isolation/README.md) and the design guide in [docs/multi-application-isolation-blueprint.md](../docs/multi-application-isolation-blueprint.md).
 - Runs in `kube-system` with cluster-wide read permissions by default. Write permissions live in `remediation-rbac.yaml` and should only be applied for controlled labs or tightly governed operations.
 - Image `k8s-diagnostics:latest` uses `IfNotPresent` for Minikube. Managed clusters should use a registry-qualified immutable tag or digest.
 - Set resource requests/limits appropriately for your cluster size.

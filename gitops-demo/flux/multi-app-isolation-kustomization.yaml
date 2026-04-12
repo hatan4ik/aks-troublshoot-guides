@@ -1,0 +1,14 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: multi-app-isolation
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: aks-troublshoot-guides
+  path: ./k8s/multi-app-isolation
+  prune: true
+  wait: true
+  timeout: 3m

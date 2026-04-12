@@ -351,3 +351,9 @@ kubectl get configmap coredns -n kube-system -o yaml
 # Check CoreDNS logs for SERVFAIL or NXDOMAIN errors
 kubectl logs -n kube-system -l k8s-app=kube-dns --tail=50
 ```
+
+## Related References
+
+- [AKS Debugging Framework](../AKS-DEBUGGING-FRAMEWORK.md)
+- [Azure Observability For AKS](./azure-observability.md)
+- [Cloud FQDN Service Access](../cloud-fqdn-service-access.md)

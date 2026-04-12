@@ -24,10 +24,12 @@ Making informed decisions about cluster size, node types, and resource allocatio
 ## Multi-Tenancy Strategies
 Designing for isolation, resource governance, and security when multiple teams or applications share a cluster.
 -   [**Guide:** Multi-Tenancy](./multi-tenancy.md)
+-   [**Guide:** Multi-Application Isolation Blueprint](../multi-application-isolation-blueprint.md)
 
 ## Network Architecture (Overlay vs Underlay, Service Mesh)
 Choosing the right CNI, network topology, and leveraging service meshes for advanced traffic management and security.
 -   [**Guide:** Network Architecture](./network-architecture.md)
+-   [**Guide:** Cloud FQDN Service Access](../cloud-fqdn-service-access.md)
 
 ## Security Architecture and Compliance
 Implementing robust security controls, RBAC, network segmentation, and compliance frameworks.

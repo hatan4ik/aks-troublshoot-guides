@@ -52,6 +52,8 @@ Implementing advanced deployment strategies for minimizing risk and ensuring smo
 ## Networking Setup for DevOps
 Configuring and troubleshooting network components, including Ingress, LoadBalancers, and DNS.
 -   [**Guide:** Networking Setup](./networking-setup.md)
+-   [**Guide:** Cloud FQDN Service Access](../cloud-fqdn-service-access.md)
+-   [**Guide:** Multi-Application Isolation Blueprint](../multi-application-isolation-blueprint.md)
 
 ## Node Management for Operations
 Maintaining the health and stability of cluster nodes, including patching, upgrades, and draining.

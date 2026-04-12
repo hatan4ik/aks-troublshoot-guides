@@ -29,6 +29,8 @@ kubectl get networkpolicies -A
 4. **Access control**: RBAC per tenant group; avoid cluster-admin bindings.
 5. **Platform services**: Shared ingress/logging/metrics with per-tenant index/route.
 
+For a concrete applyable pattern, use the [Multi-Application Isolation Blueprint](../multi-application-isolation-blueprint.md) and the example manifests in [k8s/multi-app-isolation](../../k8s/multi-app-isolation/README.md).
+
 ## AKS/EKS Nuances
 - **AKS**: Use Azure CNI powered node pools for IP isolation; AAD for RBAC; consider UDR for tenant egress.
 - **EKS**: AWS VPC CNI prefix delegation for IP scale; IRSA for per-tenant IAM; Security Groups for Pods for regulated tenants.

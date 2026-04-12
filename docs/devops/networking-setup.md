@@ -9,6 +9,8 @@ Stand up network primitives (CNI, ingress, DNS, egress) for AKS/EKS clusters.
 3. Deploy ingress controller with TLS and WAF integration.
 4. Set NetworkPolicies default-deny and allow lists.
 5. Configure egress control (NAT Gateway/Firewall, VPC NAT, SGs).
+6. Configure cloud FQDN access with DNS automation and managed TLS; see [Cloud FQDN Service Access](../cloud-fqdn-service-access.md).
+7. For shared clusters, apply a namespace/policy/RBAC blueprint per app; see [Multi-Application Isolation Blueprint](../multi-application-isolation-blueprint.md).
 
 ## Diagnostics
 ```bash
@@ -17,6 +19,7 @@ kubectl get pods -n kube-system | grep -E "cni|coredns"
 kubectl get svc -A --field-selector spec.type=LoadBalancer
 ```
 - Validate DNS and service endpoints; check LB pending states.
+- For browser-facing apps, validate DNS, TLS, route object, cloud target/backend health, and Service endpoints as separate layers.
 
 ## AKS Notes
 - Azure CNI overlay for IP scale; UDR/Firewall for egress; AGIC for ingress.

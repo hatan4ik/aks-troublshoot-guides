@@ -6,6 +6,7 @@ Defend clusters with layered controls: identity, policy, supply chain, runtime, 
 ## Pillars
 - **Identity & Access**: AAD/AWS IAM + RBAC least privilege; no cluster-admin outside break-glass.
 - **Network**: Default-deny NetworkPolicy; restrict egress; mTLS with mesh where needed.
+- **Application Isolation**: separate shared-cluster apps with namespace, RBAC, ServiceAccount, quota, and route boundaries; see [Multi-Application Isolation Blueprint](../multi-application-isolation-blueprint.md).
 - **Supply Chain**: Signed images (cosign), private registries, vulnerability scanning.
 - **Runtime**: Drop capabilities, read-only FS, seccomp, AppArmor/SELinux, PSP replacements (PSA/Gatekeeper/Kyverno).
 - **Data**: Encrypt secrets at rest; use CSI Secrets Store (Key Vault/Secrets Manager).

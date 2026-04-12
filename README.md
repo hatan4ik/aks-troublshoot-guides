@@ -11,6 +11,7 @@ This repository is a practical toolkit for Kubernetes operations, debugging, and
 - [How to Use This Guide](#how-to-use-this-guide)
 - [🏫 Course Track](#-course-track)
 - [☁️ Provider Overlays](#-provider-overlays)
+- [🌐 Cloud FQDN Service Access](#-cloud-fqdn-service-access)
 - [🧪 Live Cluster Debugging (Start Here)](#-live-cluster-debugging-start-here)
 - [🎓 Engineering Depth](#-engineering-depth)
 - [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
@@ -48,6 +49,7 @@ Ensure you have the standard K8s toolchain:
 - **For a course or workshop**: Start with [course/README.md](./course/README.md) for the syllabus, module order, and instructor notes.
 - **For live cluster debugging**: Open [DEBUG-RUNBOOK.md](./DEBUG-RUNBOOK.md) — symptom ToC and fix commands in one file.
 - **For broken local labs**: Use [docs/LOCAL-CLUSTER-DEBUGGING.md](./docs/LOCAL-CLUSTER-DEBUGGING.md) before treating a Minikube or Docker failure like an application issue.
+- **For multiple apps in one cluster**: Use [Multi-Application Isolation Blueprint](./docs/multi-application-isolation-blueprint.md) for namespace, policy, routing, identity, and port separation.
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
 - **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
@@ -90,6 +92,16 @@ Use the shared Kubernetes debugging core first, then branch into the provider ov
   [Bare Metal Networking](./docs/baremetal/baremetal-networking.md),
   [Bare Metal Observability](./docs/baremetal/baremetal-observability.md),
   [On-Prem Kubernetes](./docs/on-prem-kubernetes.md)
+
+---
+
+## 🌐 Cloud FQDN Service Access
+
+Use [Cloud FQDN Service Access](./docs/cloud-fqdn-service-access.md) when moving from local Minikube URLs to real AKS, EKS, GKE, or bare-metal service exposure.
+
+The production pattern is DNS -> TLS/WAF/Gateway or Ingress -> Kubernetes Service -> ready Pod endpoints. Avoid raw load balancer IPs, `/etc/hosts`, and `kubectl port-forward` for normal application access in cloud environments.
+
+For several applications sharing a cluster, pair this with [Multi-Application Isolation Blueprint](./docs/multi-application-isolation-blueprint.md).
 
 ---
 
@@ -157,6 +169,8 @@ The repository is organized by function and role:
 │   ├── LIVE-DEBUG-WORKFLOW.md       # Investigation workflow + safe change strategy
 │   ├── LOCAL-CLUSTER-DEBUGGING.md   # Docker Desktop + Minikube recovery workflow
 │   ├── ENGINEERING-DEPTH.md         # Staff-level systems thinking + production scenarios
+│   ├── cloud-fqdn-service-access.md  # AKS/EKS/GKE/bare-metal DNS, TLS, Ingress/Gateway path
+│   ├── multi-application-isolation-blueprint.md # Multi-app namespace, network, RBAC, route model
 │   ├── aws/
 │   │   ├── eks-networking.md        # VPC CNI, NLB/ALB, SGs, NACLs, NAT, ECR
 │   │   └── aws-observability.md     # CloudWatch, target health, VPC Flow Logs, CloudTrail
@@ -183,7 +197,7 @@ The repository is organized by function and role:
 │   ├── local/                       # Local Docker Desktop + Minikube checks and recovery
 │   └── monitoring/                  # Prometheus/Grafana bootstrap
 ├── playbooks/                       # P0/P1 Incident Runbooks
-└── k8s/                             # Manifests & Example Apps
+└── k8s/                             # Manifests, example apps, and isolation blueprints
 ```
 
 ---
@@ -198,6 +212,8 @@ Use the shared Kubernetes debugging core first, then branch into the provider ov
 - [**EKS**](./docs/EKS-DEBUGGING-FRAMEWORK.md) — VPC CNI, security groups, NLB/ALB, ECR, CloudWatch.
 - [**GKE**](./docs/GKE-DEBUGGING-FRAMEWORK.md) — VPC-native networking, firewall rules, backend services, Artifact Registry, Cloud Monitoring.
 - [**Bare Metal**](./docs/BAREMETAL-DEBUGGING-FRAMEWORK.md) — MetalLB, BGP, VIPs, MTU, storage backends, physical infrastructure.
+- [**Cloud FQDN Service Access**](./docs/cloud-fqdn-service-access.md) — production DNS, TLS, Ingress/Gateway, and provider-specific URL access patterns.
+- [**Multi-Application Isolation Blueprint**](./docs/multi-application-isolation-blueprint.md) — namespace, NetworkPolicy, RBAC, quota, and route separation for many apps in one cluster.
 
 ### 1. On-Prem / Bare Metal
 Running K8s without AWS/Azure? "You are the Cloud Provider."
