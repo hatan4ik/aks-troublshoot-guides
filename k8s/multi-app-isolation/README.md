@@ -2,6 +2,8 @@
 
 This directory contains an applyable two-application example for sharing one Kubernetes cluster safely.
 
+See the rendered architecture chart in `docs/multi-application-isolation-blueprint.md`.
+
 It demonstrates:
 
 - one namespace per app

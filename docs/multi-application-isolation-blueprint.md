@@ -23,6 +23,61 @@ internal-api.example.internal
   -> internal-api Pods
 ```
 
+## Blueprint Visualization
+
+```mermaid
+flowchart TB
+    client[Client / Browser]
+    dns[DNS: app-a.example.com / app-b.example.com]
+    edge[WAF / CDN / Cloud Load Balancer]
+
+    subgraph platform["platform-ingress namespace"]
+        gateway[Shared Gateway or Ingress Controller]
+        certs[cert-manager / provider TLS]
+        externaldns[ExternalDNS / cloud DNS controller]
+    end
+
+    subgraph appa["app-a namespace"]
+        appaQuota[ResourceQuota + LimitRange]
+        appaRBAC[RoleBinding: app-a team]
+        appaSA[ServiceAccount: app-a]
+        appaNP[NetworkPolicy: default deny + explicit allows]
+        appaIngress[Ingress or HTTPRoute: app-a.example.com]
+        appaSvc[Service: web ClusterIP :80]
+        appaPods[Pods: app-a web :8080]
+    end
+
+    subgraph appb["app-b namespace"]
+        appbQuota[ResourceQuota + LimitRange]
+        appbRBAC[RoleBinding: app-b team]
+        appbSA[ServiceAccount: app-b]
+        appbNP[NetworkPolicy: default deny + explicit allows]
+        appbIngress[Ingress or HTTPRoute: app-b.example.com]
+        appbSvc[Service: web ClusterIP :80]
+        appbPods[Pods: app-b web :8080]
+    end
+
+    subgraph shared["shared cluster services"]
+        coredns[CoreDNS]
+        observability[Logging / Metrics]
+        policy[Admission Policy]
+    end
+
+    client --> dns --> edge --> gateway
+    gateway --> appaIngress --> appaSvc --> appaPods
+    gateway --> appbIngress --> appbSvc --> appbPods
+
+    certs -. TLS certs .-> gateway
+    externaldns -. DNS records .-> dns
+    policy -. enforce labels / security / routes .-> appa
+    policy -. enforce labels / security / routes .-> appb
+
+    appaNP -. allow DNS only .-> coredns
+    appbNP -. allow DNS only .-> coredns
+    appaSA -. cloud workload identity .-> appaPods
+    appbSA -. cloud workload identity .-> appbPods
+```
+
 ## Separation Layers
 
 | Layer | Control | Rule |
