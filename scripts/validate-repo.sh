@@ -36,6 +36,9 @@ print(f"parsed {len(files)} YAML files")
 PY
 fi
 
+echo "==> Markdown links"
+python3 scripts/validate-links.py
+
 echo "==> Kustomize render"
 kubectl kustomize gitops-demo/apps/argocd-app >/dev/null
 kubectl kustomize gitops-demo/apps/flux-app >/dev/null
