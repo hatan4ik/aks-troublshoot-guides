@@ -75,6 +75,9 @@ if kubectl get crd kustomizations.kustomize.toolkit.fluxcd.io >/dev/null 2>&1; t
   if [[ "${KS_COUNT}" -gt 0 ]]; then
     echo "  Kustomizations (${KS_COUNT}):"
     kubectl get kustomizations -A 2>/dev/null | sed 's/^/  /'
+
+    echo "  🔍 Checking for Not Ready Kustomizations:"
+    kubectl get kustomizations -A --no-headers 2>/dev/null | grep -v "True" | awk '{print "    ⚠️  Kustomization " $2 " in " $1 " is not Ready."}' || true
   else
     echo "  ℹ️  No Kustomization resources found."
   fi
@@ -138,3 +141,4 @@ echo "  python3 ./k8s-diagnostics-cli.py suggest"
 echo "  python3 ./k8s-diagnostics-cli.py heal --dry-run"
 
 echo -e "\n✅ Complete"
+�� Complete"

@@ -23,6 +23,23 @@ echo "✅ Successfully connected to cluster context: ${CONTEXT}"
 echo ""
 
 # ------------------------------------------------------------------
+# Step 1.5: AKS-Specific Expert Diagnostics (Brain Injected)
+# ------------------------------------------------------------------
+echo "[Step 1.5] Running AKS-specific Expert Checks..."
+echo "  🔍 Checking Node Status and Agent Pools..."
+kubectl get nodes -o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[-1].type,VERSION:.status.nodeInfo.kubeletVersion,POOL:.metadata.labels.agentpool 2>/dev/null || echo "  ⚠️ Unable to fetch nodes."
+
+echo "  🔍 Checking CoreDNS health (critical for AKS)..."
+kubectl get pods -n kube-system -l k8s-app=kube-dns 2>/dev/null || echo "  ⚠️ Unable to fetch CoreDNS pods."
+
+echo "  🔍 Checking for Pods stuck in ContainerCreating (Possible Azure CNI IP exhaustion)..."
+kubectl get pods -A --field-selector=status.phase=Pending 2>/dev/null | grep ContainerCreating || echo "  ✅ No pods stuck in ContainerCreating."
+
+echo "  🔍 Checking for Problematic Pods (CrashLoopBackOff, Evicted, ImagePullBackOff)..."
+kubectl get pods -A 2>/dev/null | awk '$4 ~ /CrashLoopBackOff|Evicted|ImagePullBackOff|ErrImagePull/ {print "  ⚠️  " $1, $2, $4}' || echo "  ✅ No failing pods found."
+echo ""
+
+# ------------------------------------------------------------------
 # Step 2: Run analytics on the events/Logs to identify issues
 # ------------------------------------------------------------------
 echo "[Step 2] Running analytics on events, logs, and pod statuses..."
