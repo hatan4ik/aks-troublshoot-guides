@@ -9,6 +9,7 @@ The repo still works as a reference library. This file defines the narrative ord
 For clickable local navigation, use a Markdown preview:
 
 - VS Code or Cursor: open `BOOK.md`, then open Markdown Preview. In the raw editor, use Command-click on links.
+- Do not click links from the Source Control diff, staged changes view, or Git virtual documents. Those use `git:/...` URIs and can fail to resolve relative Markdown links.
 - JetBrains IDEs: use the Markdown preview pane.
 - Browser opened directly on a raw `.md` file: not recommended, because it is not a full documentation renderer.
 

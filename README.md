@@ -27,6 +27,7 @@ This repository can be used in three ways:
 For clickable local navigation, open this repo in a Markdown-aware viewer:
 
 - In VS Code or Cursor, open `README.md` or `BOOK.md`, then use Markdown Preview. In the raw editor, use Command-click on links.
+- Do not click links from the Source Control diff, staged changes view, or Git virtual documents. Those use `git:/...` URIs and can fail to resolve relative Markdown links.
 - In JetBrains IDEs, use the Markdown preview pane.
 - Do not open the raw `.md` file directly in Chrome or Safari and expect Markdown links to behave like rendered documentation.
 
