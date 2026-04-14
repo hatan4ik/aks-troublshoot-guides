@@ -755,6 +755,77 @@ class AutoFixer:
 
         return results
 
+    async def fix_networkpolicy_deny_all(self, dry_run: bool = False) -> Dict:
+        """Patch deny-all NetworkPolicies to allow ingress traffic."""
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
+
+        try:
+            policies = self.k8s.networking_v1.list_network_policy_for_all_namespaces()
+        except Exception as e:
+            results["failed"].append(f"list_network_policy_for_all_namespaces: {e}")
+            return results
+
+        for np in policies.items:
+            if not self._namespace_allowed(np.metadata.namespace):
+                continue
+            
+            spec = np.spec
+            if not spec:
+                continue
+
+            policy_types = spec.policy_types or []
+            if "Ingress" not in policy_types:
+                continue
+
+            # Deny-all pattern: Ingress in policyTypes but no ingress rules
+            if not spec.ingress:
+                patch = [{"op": "add", "path": "/spec/ingress", "value": [{}]}]
+                kubectl_cmd = f"kubectl patch networkpolicy {np.metadata.name} -n {np.metadata.namespace} --type='json' -p='[{{\"op\": \"add\", \"path\": \"/spec/ingress\", \"value\": [{{}}]}}]'"
+
+                if dry_run:
+                    results["patched"].append(f"{np.metadata.namespace}/{np.metadata.name}")
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_networkpolicy_allow_ingress",
+                        resource=f"networkpolicy/{np.metadata.namespace}/{np.metadata.name}",
+                        api_call="NetworkingV1Api.patch_namespaced_network_policy",
+                        kubectl_equivalent=kubectl_cmd,
+                        change={"field": "spec.ingress", "from": "[]", "to": "[{}]"},
+                    )
+                else:
+                    try:
+                        self.k8s.networking_v1.patch_namespaced_network_policy(
+                            np.metadata.name,
+                            np.metadata.namespace,
+                            patch,
+                        )
+                        results["patched"].append(f"{np.metadata.namespace}/{np.metadata.name}")
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            action="patch_networkpolicy_allow_ingress",
+                            resource=f"networkpolicy/{np.metadata.namespace}/{np.metadata.name}",
+                            api_call="NetworkingV1Api.patch_namespaced_network_policy",
+                            kubectl_equivalent=kubectl_cmd,
+                            change={"field": "spec.ingress", "from": "[]", "to": "[{}]"},
+                        )
+                    except ApiException as e:
+                        results["failed"].append(f"{np.metadata.namespace}/{np.metadata.name}: {e}")
+                        self._record_operation(
+                            results,
+                            dry_run=dry_run,
+                            status="failed",
+                            action="patch_networkpolicy_allow_ingress",
+                            resource=f"networkpolicy/{np.metadata.namespace}/{np.metadata.name}",
+                            api_call="NetworkingV1Api.patch_namespaced_network_policy",
+                            kubectl_equivalent=kubectl_cmd,
+                            change={"field": "spec.ingress", "from": "[]", "to": "[{}]"},
+                            error=str(e),
+                        )
+
+        return results
+
     async def fix_aggressive_liveness_probes(self, dry_run: bool = False) -> Dict:
         """Increase liveness probe initial delay for restarting workloads with liveness failures."""
         results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
@@ -1218,6 +1289,9 @@ class AutoFixer:
             elif issue["type"] == "ingress_backend_missing_service":
                 result = await self.fix_ingress_backends(dry_run=dry_run)
                 actions.append({"issue": "ingress_backend_missing_service", "result": result})
+            elif issue["type"] == "networkpolicy_deny_all":
+                result = await self.fix_networkpolicy_deny_all(dry_run=dry_run)
+                actions.append({"issue": "networkpolicy_deny_all", "result": result})
             elif issue["type"] == "aggressive_liveness_probe":
                 result = await self.fix_aggressive_liveness_probes(dry_run=dry_run)
                 actions.append({"issue": "aggressive_liveness_probe", "result": result})
