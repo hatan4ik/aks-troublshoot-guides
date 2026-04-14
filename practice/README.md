@@ -33,6 +33,7 @@ kubectl delete -f practice/01-image-pull-backoff.yaml
 | 14 | [14-oomkilled.yaml](./14-oomkilled.yaml) | `OOMKilled`, exit 137 | Memory limit |
 | 15 | [15-liveness-kills-healthy-app.yaml](./15-liveness-kills-healthy-app.yaml) | Healthy app restarts every ~30s | Liveness probe timing |
 | 16 | [16-init-container-fails.yaml](./16-init-container-fails.yaml) | `Init:CrashLoopBackOff` | Init container |
+| 20 | [20-init-waits-for-missing-service.yaml](./20-init-waits-for-missing-service.yaml) | `Init:0/1`, `config-service not ready` | Missing init dependency Service |
 
 ### Scheduling
 
@@ -85,6 +86,7 @@ kubectl get events -n practice --sort-by=.metadata.creationTimestamp | tail -20
 # Step 2 — zoom in
 kubectl describe pod <pod> -n practice
 kubectl logs <pod> -n practice --previous
+kubectl logs <pod> -n practice -c <init-container>  # for Init:* pods
 
 # Step 3 — service wiring (for networking bugs)
 kubectl get endpoints -n practice

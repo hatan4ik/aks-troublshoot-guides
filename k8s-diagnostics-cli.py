@@ -272,6 +272,16 @@ class DiagnosticsCLI:
                         "showing mismatched ports, wrong paths, and low initialDelaySeconds"
                     ),
                 }
+            elif issue["type"] == "init_containers_blocked":
+                entry["suggested_fix"] = {
+                    "action": "manual_required",
+                    "hint": (
+                        "Run: kubectl logs <pod> -n <ns> -c <init-container>. "
+                        "If logs say a service is not ready, verify it with: "
+                        "kubectl get svc,endpoints,endpointslice -n <ns> | grep <service>. "
+                        "Fix the missing Service/endpoints; remove initContainers only as a lab workaround."
+                    ),
+                }
             elif issue["type"] == "crashloop_backoff":
                 # CrashLoopBackOff pods are caught by restart_failed_pods; dry-run it
                 fix = await self.fixer.restart_failed_pods(dry_run=True)

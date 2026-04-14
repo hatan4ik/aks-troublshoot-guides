@@ -484,8 +484,12 @@ class DiagnosticsEngine:
                 seen_classes.add(pm.error_class)
                 results.append(format_match(pm))
 
-        # Match against live container logs (last 150 lines per container)
-        for cs in pod.status.container_statuses or []:
+        # Match against live init + app container logs (last 150 lines per container).
+        # Init-only failures never reach the main container, so skipping init logs
+        # hides the decisive signal for Init:0/1 pods.
+        container_statuses = list(pod.status.init_container_statuses or [])
+        container_statuses.extend(pod.status.container_statuses or [])
+        for cs in container_statuses:
             try:
                 logs = self.k8s.v1.read_namespaced_pod_log(
                     pod.metadata.name, namespace,
@@ -704,6 +708,19 @@ class DiagnosticsEngine:
                 "hint": "Use 'diagnose <ns> <pod>' for per-container probe analysis",
             })
 
+        init_blockers = self._find_init_container_blockers(active_pods)
+        if init_blockers:
+            issues.append({
+                "type": "init_containers_blocked",
+                "severity": "high",
+                "count": len(init_blockers),
+                "details": init_blockers[:5],
+                "hint": (
+                    "kubectl logs <pod> -n <ns> -c <init-container>; "
+                    "then check any dependency Service/endpoints the init container waits for"
+                ),
+            })
+
         aggressive_liveness = self._detect_aggressive_liveness_probes(active_pods)
         if aggressive_liveness:
             issues.append({
@@ -903,6 +920,36 @@ class DiagnosticsEngine:
                         f"{pod.metadata.namespace}/{pod.metadata.name} (container: {cs.name})"
                     )
         return failures
+
+    def _find_init_container_blockers(self, pods: List[V1Pod]) -> List[str]:
+        blockers = []
+        for pod in pods:
+            init_statuses = pod.status.init_container_statuses or []
+            for cs in init_statuses:
+                state = getattr(cs, "state", None)
+                if not state:
+                    continue
+
+                terminated = getattr(state, "terminated", None)
+                if terminated:
+                    exit_code = getattr(terminated, "exit_code", None)
+                    if exit_code == 0:
+                        continue
+                    reason = f"terminated exit={exit_code}"
+                elif getattr(state, "waiting", None):
+                    waiting = state.waiting
+                    reason = f"waiting:{getattr(waiting, 'reason', 'unknown')}"
+                elif getattr(state, "running", None):
+                    reason = "running"
+                else:
+                    reason = "not-complete"
+
+                blockers.append(
+                    f"{pod.metadata.namespace}/{pod.metadata.name} "
+                    f"(init: {cs.name}, state: {reason})"
+                )
+                break
+        return blockers
 
     def _detect_service_selector_mismatches(self) -> List[str]:
         issues = []

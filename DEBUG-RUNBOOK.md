@@ -253,6 +253,32 @@ kubectl logs <pod> -n <ns> -c <init-container-name> --previous
 - Init container runs a migration against a database that is unreachable
 - Wrong command or binary path in init container spec
 
+**Interview trap — ConfigMap warning, but init dependency is the blocker:**
+
+If events show a warning like `failed to sync configmap cache: timed out waiting for the condition`, first verify whether the ConfigMap actually exists. That warning can be a stale or secondary kubelet/API-cache symptom.
+
+```bash
+kubectl get configmap <cm-name> -n <ns>
+kubectl get pod <pod> -n <ns>
+```
+
+If the pod is still `Init:0/1`, the next decisive signal is the init container log:
+
+```bash
+kubectl logs <pod> -n <ns> -c <init-container> --tail=30
+# Example: config-service not ready, retrying in 2s...
+```
+
+Then verify the dependency Service and endpoints:
+
+```bash
+kubectl get svc,endpoints,endpointslice -n <ns> | grep <service-name>
+kubectl describe svc <service-name> -n <ns>
+kubectl get pods -n <ns> --show-labels
+```
+
+If the Service is missing, create it with the correct backing pods. If the Service exists but endpoints are empty, fix the Service selector or the backing pods' readiness.
+
 **Fix — remove init container (for testing only):**
 ```bash
 kubectl patch deployment <deploy> -n <ns> --type='json' \

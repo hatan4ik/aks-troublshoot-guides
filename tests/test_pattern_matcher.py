@@ -72,6 +72,16 @@ class TestMatch:
         results = match('configmap "app-config" not found')
         assert any(pm.error_class == "configmap_missing" for pm in results)
 
+    def test_configmap_cache_sync_timeout_is_not_configmap_missing(self):
+        results = match(
+            'MountVolume.SetUp failed for volume "nginx-config" : '
+            "failed to sync configmap cache: timed out waiting for the condition"
+        )
+        assert any(pm.error_class == "configmap_cache_sync_timeout" for pm in results)
+        pm = next(p for p in results if p.error_class == "configmap_cache_sync_timeout")
+        assert pm.layer == "layer4"
+        assert pm.confidence == "medium"
+
     def test_liveness_probe_killing_pod(self):
         results = match("Liveness probe failed: HTTP probe failed with statuscode: 500, killing container")
         assert any(pm.error_class == "liveness_killing_pod" for pm in results)
@@ -87,6 +97,14 @@ class TestMatch:
     def test_startup_probe_failed(self):
         results = match("Startup probe failed: connection refused on port 8080")
         assert any(pm.error_class == "startup_probe_failed" for pm in results)
+
+    def test_init_dependency_service_not_ready_log(self):
+        results = match("config-service not ready, retrying in 2s...")
+        assert any(pm.error_class == "init_dependency_service_missing" for pm in results)
+
+    def test_init_dependency_service_not_found(self):
+        results = match('services "config-service" not found')
+        assert any(pm.error_class == "init_dependency_service_missing" for pm in results)
 
     def test_match_is_case_insensitive(self):
         results = match("MANIFEST UNKNOWN when pulling image")
@@ -158,6 +176,16 @@ class TestMatchEvents:
         results = match_events([event])
         assert any(pm.error_class == "liveness_killing_pod" for pm in results)
 
+    def test_failedmount_configmap_cache_timeout_event(self):
+        event = MagicMock()
+        event.message = (
+            'MountVolume.SetUp failed for volume "nginx-config" : '
+            "failed to sync configmap cache: timed out waiting for the condition"
+        )
+        event.reason = "FailedMount"
+        results = match_events([event])
+        assert any(pm.error_class == "configmap_cache_sync_timeout" for pm in results)
+
     def test_multiple_event_types_detected(self):
         events = [
             {"message": "manifest unknown", "reason": "Failed"},
@@ -190,6 +218,11 @@ class TestMatchLogLines:
         classes = {pm.error_class for pm in results}
         assert "bad_image_tag" in classes
         assert "image_pull_backoff" in classes
+
+    def test_init_dependency_service_not_ready_line(self):
+        log = "config-service not ready, retrying in 2s...\n"
+        results = match_log_lines(log)
+        assert any(pm.error_class == "init_dependency_service_missing" for pm in results)
 
     def test_skips_blank_lines(self):
         log = "\n\n\nmanifest unknown\n\n"

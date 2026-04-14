@@ -566,6 +566,99 @@ EOF
 
 ---
 
+## Scenario 20 — Init Container Waits for Missing Service
+
+**Bug:** The pod has a valid ConfigMap, but the init container waits for `http://config-service:8080/ready`. No `Service/config-service` exists in the namespace, so the init container loops forever and the main nginx container never starts.
+
+**Why this mirrors real interviews:** You may first see a misleading `FailedMount` event like `failed to sync configmap cache: timed out waiting for the condition`. Do not stop there. If the ConfigMap exists and the pod status is `Init:0/1`, inspect the init container logs.
+
+**How to find it:**
+```bash
+kubectl get pod -n practice -l app=scenario-20
+# STATUS: Init:0/1
+
+kubectl get configmap scenario-20-nginx-config -n practice
+# The ConfigMap exists, so the ConfigMap is not the primary bug.
+
+kubectl logs -n practice -l app=scenario-20 -c init-config --tail=20
+# config-service not ready, retrying in 2s...
+
+kubectl get svc,endpoints,endpointslice -n practice | grep config-service
+# No output.
+
+kubectl describe svc config-service -n practice
+# Error from server (NotFound): services "config-service" not found
+```
+
+**Fix (option A) — create the missing dependency Service and backing pod:**
+```bash
+kubectl apply -f - <<'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-service
+  namespace: practice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-service
+  template:
+    metadata:
+      labels:
+        app: config-service
+    spec:
+      containers:
+      - name: config-service
+        image: python:3.12-alpine
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /tmp/config
+          printf 'ready\n' > /tmp/config/ready
+          cd /tmp/config
+          python -m http.server 8080
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-service
+  namespace: practice
+spec:
+  selector:
+    app: config-service
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+EOF
+
+kubectl rollout status deployment/config-service -n practice
+kubectl rollout status deployment/scenario-20 -n practice
+```
+
+**Fix (option B) — remove the init gate for a lab-only workaround:**
+```bash
+kubectl patch deployment scenario-20 -n practice --type='json' \
+  -p='[{"op":"remove","path":"/spec/template/spec/initContainers"}]'
+
+kubectl rollout status deployment/scenario-20 -n practice
+```
+
+**Production rule:** Do not remove init containers blindly. First decide if the dependency is required for correctness. If the app really needs that dependency, fix the Service, selector, endpoints, or dependency Deployment instead.
+
+---
+
 ## Exit Code Reference
 
 | Code | Meaning |

@@ -175,6 +175,30 @@ _PATTERNS: List[_Pattern] = [
         fix_description="Create the missing Secret with the required keys",
     ),
     _Pattern(
+        regex=(
+            r"failed to sync configmap cache|"
+            r"MountVolume\.SetUp failed.*configmap cache|"
+            r"timed out waiting for the condition.*configmap"
+        ),
+        layer="layer4", error_class="configmap_cache_sync_timeout", severity="medium",
+        root_cause=(
+            "Kubelet timed out syncing its ConfigMap cache. This is often a transient API/kubelet "
+            "signal and does not by itself prove the ConfigMap is missing."
+        ),
+        next_command=(
+            "kubectl get configmap <cm-name> -n <ns>\n"
+            "kubectl describe pod <pod> -n <ns>\n"
+            "kubectl get events -n <ns> --sort-by=.metadata.creationTimestamp | tail -50"
+        ),
+        fix_command=(
+            "# If the ConfigMap exists and the pod is stuck in Init, inspect init logs first:\n"
+            "kubectl logs <pod> -n <ns> -c <init-container>\n"
+            "# If cache timeouts continue across pods, check kubelet/node/API server health."
+        ),
+        fix_description="Verify whether this is a stale secondary event before changing ConfigMaps",
+        confidence="medium",
+    ),
+    _Pattern(
         regex=r'configmap[" ]+(\S+)[" ]+ not found|failed to get configmap',
         layer="layer1", error_class="configmap_missing", severity="high",
         root_cause="Pod references a ConfigMap that does not exist in the namespace",
@@ -340,6 +364,32 @@ _PATTERNS: List[_Pattern] = [
     ),
 
     # ── Layer 3: Service Networking ───────────────────────────────────────────
+
+    _Pattern(
+        regex=(
+            r"(?:config-service|postgres-service|[a-z0-9-]+-service)\s+not ready(?:, retrying)?|"
+            r"services? [\"'][a-z0-9-]+-service[\"'] not found|"
+            r"bad address [\"']?[a-z0-9-]+-service[\"']?|"
+            r"init[- ]?container.*(?:service|dependency).*(?:not ready|not found)"
+        ),
+        layer="layer3", error_class="init_dependency_service_missing", severity="high",
+        root_cause=(
+            "An init container is waiting for a Service/dependency that is missing or has no ready endpoints, "
+            "so the main container never starts."
+        ),
+        next_command=(
+            "kubectl logs <pod> -n <ns> -c <init-container>\n"
+            "kubectl get svc,endpoints,endpointslice -n <ns> | grep <service-name>\n"
+            "kubectl get pods -n <ns> --show-labels"
+        ),
+        fix_command=(
+            "# Preferred: create/fix the dependency Service and backing pods.\n"
+            "# Lab-only workaround: remove the init gate from the Deployment:\n"
+            "kubectl patch deployment <deploy> -n <ns> --type=json "
+            "-p='[{\"op\":\"remove\",\"path\":\"/spec/template/spec/initContainers\"}]'"
+        ),
+        fix_description="Restore the missing dependency Service/endpoints or remove the init gate only as a lab workaround",
+    ),
 
     _Pattern(
         regex=r"dial tcp.*:(\d+).*connection refused|connect.*ECONNREFUSED",

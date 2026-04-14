@@ -48,6 +48,7 @@
 | Issue | Symptoms | Business Impact | Automation | Team Focus |
 |-------|----------|-----------------|------------|------------|
 | **Update Stuck** | Deployment not progressing| Release Delays | [`deployment-diagnostics.sh`](./scripts/diagnostics/deployment-diagnostics.sh) | DevOps, Engineers |
+| **Init Dependency Missing** | `Init:0/1`, dependency service not ready | Release Delays | [`k8s-diagnostics-cli.py`](./k8s-diagnostics-cli.py) | Engineers, DevOps |
 | **Config Drift** | Inconsistent configurations| Unpredictable Behavior| [`config-validation.sh`](./scripts/diagnostics/config-validation.sh) | DevOps, SRE |
 | **Rollback Failures** | Cannot revert changes | Extended Downtime | [`rollback-diagnostics.sh`](./scripts/diagnostics/rollback-diagnostics.sh) | DevOps, SRE |
 | **Helm Issues** | Chart deployment failures| Deployment Failures | [`helm-diagnostics.sh`](./scripts/diagnostics/helm-diagnostics.sh) | DevOps, Engineers |
