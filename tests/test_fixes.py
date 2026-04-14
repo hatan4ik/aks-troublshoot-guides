@@ -542,3 +542,42 @@ class TestApplyResourceLimits:
             fixer.apply_resource_limits("staging", "myapp", "100m", "128Mi")
         )
         assert result["status"] == "skipped"
+
+
+# ── fix_oomkilled_pods ────────────────────────────────────────────────────────
+
+
+class TestFixOOMKilledPods:
+    def _make_oom_pod(self, ns="default", name="oom-pod", container_name="app"):
+        pod = _make_pod(name=name, namespace=ns, phase="Failed")
+        cs = MagicMock()
+        cs.name = container_name
+        cs.state.terminated.reason = "OOMKilled"
+        pod.status.container_statuses = [cs]
+        return pod
+
+    def test_dry_run_patches_oomkilled(self):
+        fixer = _make_fixer()
+        pod = self._make_oom_pod()
+        pod.metadata.labels = {"app": "myapp"}
+        fixer.k8s.v1.list_pod_for_all_namespaces.return_value.items = [pod]
+
+        dep = MagicMock()
+        dep.metadata.name = "myapp"
+        dep.metadata.namespace = "default"
+        dep.spec.selector.match_labels = {"app": "myapp"}
+        container = MagicMock()
+        container.name = "app"
+        container.resources.limits = {"memory": "256Mi"}
+        dep.spec.template.spec.containers = [container]
+        
+        fixer.k8s.apps_v1.list_namespaced_deployment.return_value.items = [dep]
+
+        result = asyncio.get_event_loop().run_until_complete(
+            fixer.fix_oomkilled_pods(dry_run=True)
+        )
+
+        assert result["dry_run"] is True
+        assert len(result["patched"]) == 1
+        assert "512Mi" in result["patched"][0]
+        fixer.k8s.apps_v1.patch_namespaced_deployment.assert_not_called()

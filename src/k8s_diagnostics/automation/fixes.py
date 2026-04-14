@@ -1067,6 +1067,123 @@ class AutoFixer:
         except ApiException as e:
             return {"error": self._categorize_api_exception(e)}
 
+    async def fix_oomkilled_pods(self, dry_run: bool = False) -> Dict:
+        """Automatically increase memory limits by 256Mi for OOMKilled containers."""
+        results: Dict = self._new_results(dry_run, patched=[], skipped=[], failed=[])
+        pods = self.k8s.v1.list_pod_for_all_namespaces().items
+
+        for pod in pods:
+            if not self._namespace_allowed(pod.metadata.namespace):
+                continue
+            
+            oom_containers = []
+            for cs in (pod.status.container_statuses or []):
+                state = cs.state.terminated if cs.state and cs.state.terminated else None
+                last_state = cs.last_state.terminated if cs.last_state and cs.last_state.terminated else None
+                
+                if (state and state.reason == "OOMKilled") or (last_state and last_state.reason == "OOMKilled"):
+                    oom_containers.append(cs.name)
+            
+            if not oom_containers:
+                continue
+
+            deployment = self._find_matching_deployment_for_pod(pod)
+            if not deployment:
+                results["skipped"].append(
+                    f"{pod.metadata.namespace}/{pod.metadata.name} (no owning deployment found for OOMKilled pod)"
+                )
+                continue
+
+            changed = []
+            for container_index, container in enumerate(deployment.spec.template.spec.containers or []):
+                if container.name not in oom_containers:
+                    continue
+                
+                limits = container.resources.limits if container.resources and container.resources.limits else {}
+                current_mem = limits.get("memory", "256Mi")
+                
+                try:
+                    if current_mem.endswith("Mi"):
+                        val = int(current_mem[:-2])
+                        new_mem = f"{val + 256}Mi"
+                    elif current_mem.endswith("Gi"):
+                        val = int(current_mem[:-2])
+                        new_mem = f"{val + 1}Gi"
+                    else:
+                        new_mem = "512Mi"
+                except Exception:
+                    new_mem = "512Mi"
+
+                if dry_run:
+                    results["patched"].append(
+                        f"[DRY-RUN] would patch memory limit on {deployment.metadata.namespace}/{deployment.metadata.name} container {container.name}: {current_mem} -> {new_mem}"
+                    )
+                else:
+                    # In python client, resources might be None
+                    if not container.resources:
+                        # Depending on the client version, we might need to set a V1ResourceRequirements object
+                        # However, dict assignment is usually safer in the python k8s client if we just patch
+                        pass 
+                    if not container.resources.limits:
+                        container.resources.limits = {}
+                    container.resources.limits["memory"] = new_mem
+                
+                changed.append((container_index, container.name, current_mem, new_mem))
+
+            if not changed:
+                continue
+                
+            if dry_run:
+                for container_index, c_name, old_mem, new_mem in changed:
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_oom_memory_limit",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=f"kubectl set resources deployment {deployment.metadata.name} -n {deployment.metadata.namespace} -c {c_name} --limits=memory={new_mem}",
+                        change={"field": f"spec.template.spec.containers[{c_name}].resources.limits.memory", "from": old_mem, "to": new_mem}
+                    )
+                continue
+
+            try:
+                self.k8s.apps_v1.patch_namespaced_deployment(
+                    deployment.metadata.name,
+                    deployment.metadata.namespace,
+                    deployment,
+                )
+                for container_index, c_name, old_mem, new_mem in changed:
+                    results["patched"].append(
+                        f"{deployment.metadata.namespace}/{deployment.metadata.name}: container {c_name} memory limit {old_mem} -> {new_mem}"
+                    )
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        action="patch_oom_memory_limit",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=f"kubectl set resources deployment {deployment.metadata.name} -n {deployment.metadata.namespace} -c {c_name} --limits=memory={new_mem}",
+                        change={"field": f"spec.template.spec.containers[{c_name}].resources.limits.memory", "from": old_mem, "to": new_mem}
+                    )
+            except ApiException as e:
+                results["failed"].append(
+                    f"{deployment.metadata.namespace}/{deployment.metadata.name}: {str(e)}"
+                )
+                for container_index, c_name, old_mem, new_mem in changed:
+                    self._record_operation(
+                        results,
+                        dry_run=dry_run,
+                        status="failed",
+                        action="patch_oom_memory_limit",
+                        resource=f"deployment/{deployment.metadata.namespace}/{deployment.metadata.name}",
+                        api_call="AppsV1Api.patch_namespaced_deployment",
+                        kubectl_equivalent=f"kubectl set resources deployment {deployment.metadata.name} -n {deployment.metadata.namespace} -c {c_name} --limits=memory={new_mem}",
+                        change={"field": f"spec.template.spec.containers[{c_name}].resources.limits.memory", "from": old_mem, "to": new_mem},
+                        error=str(e)
+                    )
+                    
+        return results
+
     async def auto_remediate(self, diagnostics_engine, dry_run: bool = False) -> Dict:
         """Detect issues and apply safe remediations."""
         detected = await diagnostics_engine.detect_common_issues()
@@ -1098,6 +1215,11 @@ class AutoFixer:
             elif issue["type"] == "aggressive_liveness_probe":
                 result = await self.fix_aggressive_liveness_probes(dry_run=dry_run)
                 actions.append({"issue": "aggressive_liveness_probe", "result": result})
+            elif issue["type"] == "high_restart_count":
+                result = await self.fix_oomkilled_pods(dry_run=dry_run)
+                actions.append({"issue": "high_restart_count_oom", "result": result})
+                result2 = await self.fix_aggressive_liveness_probes(dry_run=dry_run)
+                actions.append({"issue": "high_restart_count_liveness", "result": result2})
             elif issue["type"] == "gitops_controller_unhealthy":
                 result = await self.restart_unhealthy_gitops_controllers(dry_run=dry_run)
                 actions.append({"issue": "gitops_controller_unhealthy", "result": result})
