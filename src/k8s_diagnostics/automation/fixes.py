@@ -791,9 +791,9 @@ class AutoFixer:
                 if not probe:
                     continue
                 initial_delay = probe.initial_delay_seconds or 0
-                if initial_delay >= 30:
+                target_delay = min(120, initial_delay + 30)
+                if target_delay == initial_delay:
                     continue
-                target_delay = max(30, initial_delay)
                 if dry_run:
                     results["patched"].append(
                         f"[DRY-RUN] would patch livenessProbe.initialDelaySeconds on {deployment.metadata.namespace}/{deployment.metadata.name}: {initial_delay} -> {target_delay}"
@@ -1081,7 +1081,13 @@ class AutoFixer:
                 state = cs.state.terminated if cs.state and cs.state.terminated else None
                 last_state = cs.last_state.terminated if cs.last_state and cs.last_state.terminated else None
                 
-                if (state and state.reason == "OOMKilled") or (last_state and last_state.reason == "OOMKilled"):
+                is_oom = False
+                for st in (state, last_state):
+                    if st:
+                        if st.reason == "OOMKilled" or st.exit_code == 137:
+                            is_oom = True
+                
+                if is_oom:
                     oom_containers.append(cs.name)
             
             if not oom_containers:
