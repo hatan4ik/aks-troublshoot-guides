@@ -214,9 +214,11 @@ Candidate causes and evidence-backed fixes for deeper infrastructure issues:
 - **SNAT Port Exhaustion:** Outbound connection failures occur when pods exhaust source NAT ports due to too many rapid external API calls.
   - *Fix:* Implement connection pooling in the app, or scale out the NAT Gateway / Load Balancer outbound IPs.
 - **Requests vs. Limits (Throttling vs. OOM):** CPU limit breaches cause silent throttling (latency), whereas Memory limit breaches cause immediate crashes (`OOMKilled` / Exit Code 137).
-  - *Fix:* Check `container_cpu_cfs_throttled_seconds_total` in Prometheus. Increase limits or remove CPU limits entirely for latency-sensitive workloads.
+  - *Fix:* Check `container_cpu_cfs_throttled_seconds_total` in Prometheus. Increase limits or remove CPU limits entirely for latency-sensitive workloads. Distinguish between a memory leak (usage grows over time) and insufficient limits (immediate crash).
 - **NodeNotReady (PLEG Issues):** Nodes get stuck in `NotReady` because the Pod Lifecycle Event Generator (PLEG) is unhealthy, often due to a hung container runtime or heavy disk I/O.
   - *Fix:* Check `journalctl -u kubelet` for PLEG timeout errors. Restart the container runtime (e.g., `systemctl restart containerd`) or drain and reboot the node.
+- **ETCD Latency & Health:** On-prem API server latency increases, leading to timeout errors in `kubectl` and scheduling delays.
+  - *Fix:* Check ETCD disk `fsync` metrics. Ensure ETCD is on fast SSDs and not competing with heavy IOPS workloads.
 
 ### Cloud-Specific Failures (AKS)
 - **Outbound Connectivity Blocking:** `OutboundConnFailVMExtensionError` during provisioning or scaling, caused by a firewall or NSG blocking traffic to required Microsoft Container Registry (MCR) endpoints.
