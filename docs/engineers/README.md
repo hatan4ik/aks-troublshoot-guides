@@ -49,6 +49,7 @@ Ensure your application meets operational standards before promoting it to produ
 -   [ ] **Security Context:** Least privilege user, `readOnlyRootFilesystem`, dropped capabilities.
 -   [ ] **Scalability:** Horizontal Pod Autoscaler (HPA) configured and tested.
 -   [ ] **Disaster Recovery:** Understand data backup/restore strategy for stateful components.
+-   [ ] **AI/GPU Readiness:** For model workloads, validate GPU requests, node placement, model artifact access, and CUDA/runtime compatibility. See [AI/GPU Workload Troubleshooting](../ai-gpu-workload-troubleshooting.md).
 
 ---
 
@@ -114,6 +115,7 @@ Testing applications effectively in a distributed environment.
 -   **End-to-End (E2E) Tests:** Deploy to a test cluster and simulate user behavior.
 -   **Contract Testing:** Verify API contracts between microservices.
 -   **Chaos Engineering:** Deliberately inject failures to test resilience (Chaos Mesh, LitmusChaos).
+-   **Pipeline Validation:** Render Helm/Kustomize output and run client/server dry-runs before GitOps sync. See [SDLC Pipeline Troubleshooting](../devops/sdlc-pipeline-troubleshooting.md).
 
 ---
 
@@ -126,6 +128,7 @@ Managing databases and other stateful applications in Kubernetes.
     -   **Troubleshooting:** `kubectl get pv,pvc`. Are they bound? Is the StorageClass correct?
 -   **StorageClasses:** Define types of storage (e.g., SSD, HDD, IOPS tiers).
 -   **Distributed Databases:** Consider operators (e.g., Postgres Operator, Cassandra Operator) for managing complex stateful apps.
+-   **Incident Playbook:** Use [Storage and Stateful Workload Incident Playbook](../storage-stateful-incident-playbook.md) before removing finalizers, force deleting pods, or changing PVC/PV state.
 
 ---
 
@@ -171,3 +174,6 @@ Managing databases and other stateful applications in Kubernetes.
 -   [Testing Strategies](./testing-strategies.md)
 -   [Pod Startup Issues](./pod-startup-issues.md)
 -   [Stateful Workloads](./stateful-workloads.md)
+-   [AI/GPU Workload Troubleshooting](../ai-gpu-workload-troubleshooting.md)
+-   [SDLC Pipeline Troubleshooting](../devops/sdlc-pipeline-troubleshooting.md)
+-   [Storage and Stateful Workload Incident Playbook](../storage-stateful-incident-playbook.md)

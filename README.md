@@ -12,6 +12,7 @@ This repository is a practical toolkit for Kubernetes operations, debugging, and
 - [🏫 Course Track](#-course-track)
 - [☁️ Provider Overlays](#-provider-overlays)
 - [🌐 Cloud FQDN Service Access](#-cloud-fqdn-service-access)
+- [🧭 Advanced Operations Playbooks](#-advanced-operations-playbooks)
 - [🧪 Live Cluster Debugging (Start Here)](#-live-cluster-debugging-start-here)
 - [🎓 Engineering Depth](#-engineering-depth)
 - [🚀 Quick Start (Emergency Response)](#-quick-start-emergency-response)
@@ -50,6 +51,10 @@ Ensure you have the standard K8s toolchain:
 - **For live cluster debugging**: Open [DEBUG-RUNBOOK.md](./DEBUG-RUNBOOK.md) — symptom ToC and fix commands in one file.
 - **For broken local labs**: Use [docs/LOCAL-CLUSTER-DEBUGGING.md](./docs/LOCAL-CLUSTER-DEBUGGING.md) before treating a Minikube or Docker failure like an application issue.
 - **For multiple apps in one cluster**: Use [Multi-Application Isolation Blueprint](./docs/multi-application-isolation-blueprint.md) for namespace, policy, routing, identity, and port separation.
+- **For AI/GPU workloads**: Use [AI/GPU Workload Troubleshooting](./docs/ai-gpu-workload-troubleshooting.md) for GPU scheduling, NVIDIA plugin, CUDA/runtime, and model OOM failures.
+- **For cost and capacity reviews**: Use [FinOps and Resource Optimization](./docs/finops-resource-optimization.md) to find waste without weakening reliability.
+- **For storage incidents**: Use [Storage and Stateful Workload Incident Playbook](./docs/storage-stateful-incident-playbook.md) before changing PVCs, PVs, VolumeAttachments, or StatefulSets.
+- **For CI/CD and GitOps failures**: Use [SDLC Pipeline Troubleshooting](./docs/devops/sdlc-pipeline-troubleshooting.md) to isolate build, render, CRD, admission, GitOps, and rollout failures.
 - **In an incident**: Run the [Emergency Checklist](#-quick-start-emergency-response) below, then dive into the `playbooks/` folder.
 - **For prevention**: Follow the [Operating Models](#-role-based-operating-models) and automation sections to bake guardrails into CI/CD.
 - **For growth**: Walk the docs in order—start with Quick Start, then team guides, then automation.
@@ -102,6 +107,17 @@ Use [Cloud FQDN Service Access](./docs/cloud-fqdn-service-access.md) when moving
 The production pattern is DNS -> TLS/WAF/Gateway or Ingress -> Kubernetes Service -> ready Pod endpoints. Avoid raw load balancer IPs, `/etc/hosts`, and `kubectl port-forward` for normal application access in cloud environments.
 
 For several applications sharing a cluster, pair this with [Multi-Application Isolation Blueprint](./docs/multi-application-isolation-blueprint.md).
+
+---
+
+## 🧭 Advanced Operations Playbooks
+
+Use these when the interview or incident moves beyond basic pod debugging:
+
+- [AI/GPU Workload Troubleshooting](./docs/ai-gpu-workload-troubleshooting.md) - GPU scheduling, NVIDIA device plugin, CUDA/runtime mismatch, model OOM, and provider-specific accelerator notes.
+- [FinOps and Resource Optimization](./docs/finops-resource-optimization.md) - idle nodes, over-requested pods, orphaned PVCs, load balancer sprawl, HPA thrashing, and logging/metrics cost.
+- [Storage and Stateful Workload Incident Playbook](./docs/storage-stateful-incident-playbook.md) - PVC Pending, stuck finalizers, VolumeAttachment issues, cloud CSI attach failures, and StatefulSet quorum loss.
+- [SDLC Pipeline Troubleshooting](./docs/devops/sdlc-pipeline-troubleshooting.md) - CI build, image pull, manifest render, CRD versioning, admission policy, Argo CD, Flux CD, Helm, and rollout failures.
 
 ---
 
@@ -171,6 +187,9 @@ The repository is organized by function and role:
 │   ├── ENGINEERING-DEPTH.md         # Staff-level systems thinking + production scenarios
 │   ├── cloud-fqdn-service-access.md  # AKS/EKS/GKE/bare-metal DNS, TLS, Ingress/Gateway path
 │   ├── multi-application-isolation-blueprint.md # Multi-app namespace, network, RBAC, route model
+│   ├── ai-gpu-workload-troubleshooting.md # AI/GPU scheduling, runtime, and model OOM playbook
+│   ├── finops-resource-optimization.md # Resource, storage, LB, logging, and cost optimization
+│   ├── storage-stateful-incident-playbook.md # PVC/PV/VolumeAttachment/StatefulSet incidents
 │   ├── aws/
 │   │   ├── eks-networking.md        # VPC CNI, NLB/ALB, SGs, NACLs, NAT, ECR
 │   │   └── aws-observability.md     # CloudWatch, target health, VPC Flow Logs, CloudTrail
@@ -214,6 +233,10 @@ Use the shared Kubernetes debugging core first, then branch into the provider ov
 - [**Bare Metal**](./docs/BAREMETAL-DEBUGGING-FRAMEWORK.md) — MetalLB, BGP, VIPs, MTU, storage backends, physical infrastructure.
 - [**Cloud FQDN Service Access**](./docs/cloud-fqdn-service-access.md) — production DNS, TLS, Ingress/Gateway, and provider-specific URL access patterns.
 - [**Multi-Application Isolation Blueprint**](./docs/multi-application-isolation-blueprint.md) — namespace, NetworkPolicy, RBAC, quota, and route separation for many apps in one cluster.
+- [**AI/GPU Workload Troubleshooting**](./docs/ai-gpu-workload-troubleshooting.md) — GPU scheduling, NVIDIA device plugin, CUDA/runtime mismatch, and model OOM triage.
+- [**FinOps and Resource Optimization**](./docs/finops-resource-optimization.md) — cost leaks, right-sizing, HPA/VPA review, orphaned disks, and load balancer consolidation.
+- [**Storage and Stateful Workload Incident Playbook**](./docs/storage-stateful-incident-playbook.md) — PVC/PV, VolumeAttachment, CSI, disk-full, and quorum-loss incidents.
+- [**SDLC Pipeline Troubleshooting**](./docs/devops/sdlc-pipeline-troubleshooting.md) — CI/CD, GitOps, Helm, CRDs, admission policy, and rollout debugging.
 
 ### 1. On-Prem / Bare Metal
 Running K8s without AWS/Azure? "You are the Cloud Provider."

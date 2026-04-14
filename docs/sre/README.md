@@ -18,16 +18,19 @@ This section is tailored for Site Reliability Engineers (SREs) and focuses on ma
 ## Observability at Scale
 Implementing robust monitoring, logging, and tracing solutions to gain deep insights into cluster and application health.
 -   [**Guide:** Observability at Scale](./observability-at-scale.md)
+-   [**Guide:** AI/GPU Workload Troubleshooting](../ai-gpu-workload-troubleshooting.md)
 
 ## Incident Response and Management
 Establishing clear processes and tools for detecting, responding to, and resolving production incidents efficiently.
 -   [**Guide:** Emergency Response (Root)](../emergency-response.md)
+-   [**Guide:** Storage and Stateful Workload Incident Playbook](../storage-stateful-incident-playbook.md)
 
 ## Service Level Objectives (SLOs) and Error Budgets
 Defining and tracking key reliability metrics to balance innovation with stability.
 
 ## Capacity Planning and Performance Optimization
 Proactively managing cluster resources and optimizing workload performance to prevent issues.
+-   [**Guide:** FinOps and Resource Optimization](../finops-resource-optimization.md)
 
 ## Post-Mortems and Learning from Failures
 Conducting blameless post-mortems to identify root causes and implement preventative measures.

@@ -9,6 +9,7 @@ This section outlines best practices and troubleshooting techniques for DevOps p
 - [Cluster Provisioning and Setup](#cluster-provisioning-and-setup)
 - [Build Failures in CI](#build-failures-in-ci)
 - [Deployment Failures](#deployment-failures)
+- [SDLC Pipeline Troubleshooting](#sdlc-pipeline-troubleshooting)
 - [GitOps Workflows and Troubleshooting](#gitops-workflows-and-troubleshooting)
 - [Registry Issues (Image Pull Failures)](#registry-issues-image-pull-failures)
 - [Rolling Updates and Rollback Procedures](#rolling-updates-and-rollback-procedures)
@@ -31,9 +32,14 @@ Diagnosing and resolving common issues encountered during the build phase of the
 Troubleshooting applications that fail to deploy or become ready after deployment.
 -   [**Guide:** Deployment Failures](./deployment-failures.md)
 
+## SDLC Pipeline Troubleshooting
+Debugging failures across source, build, registry, manifest render, CRDs, policy admission, GitOps sync, Helm, and rollout layers.
+-   [**Guide:** SDLC Pipeline Troubleshooting](./sdlc-pipeline-troubleshooting.md)
+
 ## GitOps Workflows and Troubleshooting
 Implementing and debugging GitOps patterns using tools like Argo CD or Flux CD.
 -   [**Guide:** GitOps](./gitops.md)
+-   [**Guide:** SDLC Pipeline Troubleshooting](./sdlc-pipeline-troubleshooting.md)
 
 ## Registry Issues (Image Pull Failures)
 Resolving problems related to pulling container images from private or public registries.
@@ -62,3 +68,4 @@ Maintaining the health and stability of cluster nodes, including patching, upgra
 ## Storage Configuration for DevOps
 Setting up and managing persistent storage for applications.
 -   [**Guide:** Storage Configuration](./storage-configuration.md)
+-   [**Guide:** Storage and Stateful Workload Incident Playbook](../storage-stateful-incident-playbook.md)

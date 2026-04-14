@@ -20,6 +20,7 @@ This section focuses on the architectural considerations for designing, building
 ## Cluster Sizing and Capacity Planning
 Making informed decisions about cluster size, node types, and resource allocation to meet performance, cost, and availability requirements.
 -   [**Guide:** Cluster Sizing](./cluster-sizing.md)
+-   [**Guide:** FinOps and Resource Optimization](../finops-resource-optimization.md)
 
 ## Multi-Tenancy Strategies
 Designing for isolation, resource governance, and security when multiple teams or applications share a cluster.
@@ -42,10 +43,12 @@ Strategies for backup, restore, and high availability across regions or data cen
 ## Node Pool Design and Management
 Optimizing node pools for different workloads, auto-scaling, and lifecycle management.
 -   [**Guide:** Node Pools](./node-pools.md)
+-   [**Guide:** AI/GPU Workload Troubleshooting](../ai-gpu-workload-troubleshooting.md)
 
 ## Storage Architecture
 Designing persistent storage solutions for stateful applications, including block, file, and object storage.
 -   [**Guide:** Storage Architecture](./storage-architecture.md)
+-   [**Guide:** Storage and Stateful Workload Incident Playbook](../storage-stateful-incident-playbook.md)
 
 ## Service Mesh Integration
 Leveraging service meshes like Istio or Linkerd for traffic management, observability, and security.
