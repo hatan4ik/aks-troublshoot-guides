@@ -141,4 +141,3 @@ echo "  python3 ./k8s-diagnostics-cli.py suggest"
 echo "  python3 ./k8s-diagnostics-cli.py heal --dry-run"
 
 echo -e "\nâœ… Complete"
-œ… Complete"
