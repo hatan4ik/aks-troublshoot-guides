@@ -191,6 +191,40 @@ kubectl exec -it <pod> -n <namespace> -- sh
 kubectl debug -it <pod> -n <namespace> --target=<container> --image=busybox -- sh
 ```
 
+## Advanced Debugging Tools & Techniques
+
+When standard commands aren't enough, escalate to these advanced tools:
+
+- **Ephemeral Containers:** Attach a debugging container to a running pod that has crashed or lacks a shell (e.g., distroless images).
+  - `kubectl debug -it <pod> -n <namespace> --image=busybox --target=<container>`
+- **Node-Level Debugging:** Get a privileged shell on the underlying host to check kubelet logs or system pressure.
+  - `kubectl debug node/<node-name> -it --image=ubuntu`
+  - Inside the node: `chroot /host`, `journalctl -u kubelet`, `df -h`
+- **Network Packet Sniffing:** Capture TCP traffic for deep protocol analysis.
+  - Use `ksniff` (a kubectl plugin) or run `tcpdump` within a debug container to diagnose connection resets or dropped packets.
+
+## Complex Production Scenarios
+
+Candidate causes and evidence-backed fixes for deeper infrastructure issues:
+
+- **The "DNS Cascade":** A single failing service with aggressive retry logic overwhelms CoreDNS, leading to a cluster-wide DNS resolution outage.
+  - *Fix:* Scale CoreDNS, implement `NodeLocal DNSCache`, and fix the offending app's retry/backoff logic.
+- **MTU Mismatches & CNI Failures:** Large packets drop between nodes, causing intermittent TCP timeouts (common in on-prem, custom VNets, or nested overlays).
+  - *Fix:* Check CNI MTU configuration versus the underlying node interface MTU. Use `ping -s <size> -M do <node-ip>` to test path MTU.
+- **SNAT Port Exhaustion:** Outbound connection failures occur when pods exhaust source NAT ports due to too many rapid external API calls.
+  - *Fix:* Implement connection pooling in the app, or scale out the NAT Gateway / Load Balancer outbound IPs.
+- **Requests vs. Limits (Throttling vs. OOM):** CPU limit breaches cause silent throttling (latency), whereas Memory limit breaches cause immediate crashes (`OOMKilled` / Exit Code 137).
+  - *Fix:* Check `container_cpu_cfs_throttled_seconds_total` in Prometheus. Increase limits or remove CPU limits entirely for latency-sensitive workloads.
+- **NodeNotReady (PLEG Issues):** Nodes get stuck in `NotReady` because the Pod Lifecycle Event Generator (PLEG) is unhealthy, often due to a hung container runtime or heavy disk I/O.
+  - *Fix:* Check `journalctl -u kubelet` for PLEG timeout errors. Restart the container runtime (e.g., `systemctl restart containerd`) or drain and reboot the node.
+
+### Cloud-Specific Failures (AKS)
+- **Outbound Connectivity Blocking:** `OutboundConnFailVMExtensionError` during provisioning or scaling, caused by a firewall or NSG blocking traffic to required Microsoft Container Registry (MCR) endpoints.
+  - *Fix:* Whitelist cluster CIDR or required FQDNs on the outbound firewall.
+- **Expired Service Principals:** Cluster cannot perform operations, scale, or pull images from Azure Container Registry (ACR), often presenting as `AADSTS7000222`.
+  - *Fix:* Update SP credentials or migrate the cluster to Managed Identities.
+- **Diagnostic Tooling:** Use **AKS Periscope** and **Inspector Gadget** to collect node logs and trace low-level Linux TCP events dynamically.
+
 ## High-Value Fix Areas
 
 The most common root causes in a live broken cluster:
